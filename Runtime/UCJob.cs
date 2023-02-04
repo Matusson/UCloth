@@ -313,7 +313,6 @@ namespace UCloth
             NativeList<int3> regionsIndexes = new(64, Allocator.Temp);
 
             // Spatial partitioning into the 3D "array"
-            // - not actually array as node count can vary
             for (ushort i = 0; i < _nodeCount; i++)
             {
                 float3 pos = positions[i];
@@ -328,8 +327,6 @@ namespace UCloth
                 if (!utilizedSelfColRegions.Contains(index))
                 {
                     utilizedSelfColRegions.Add(index);
-
-                    // NOTE: Potential optimization: if there is a used index in the direct neighbourhood, no need to process the cell, explained below
                     regionsIndexes.Add(index);
                 }
             }
@@ -410,8 +407,8 @@ namespace UCloth
                 float forceScale = collisionSettings.selfCollisionStiffness / (2 * material.vertexMass);
                 float3 posDelta = forceScale * material.vertexMass * (posDiff - (posDiff * ratio));
 
-                positions[index1] = positions[index1] - posDelta;
-                positions[index2] = positions[index2] + posDelta;
+                positions[index1] = positions[index1] - posDelta * reciprocalWeight[index1];
+                positions[index2] = positions[index2] + posDelta * reciprocalWeight[index2];
 
                 // Remove velocity along the normal of the node
                 // This is not a perfect solution as it can cause jittering and some clipping
@@ -422,11 +419,14 @@ namespace UCloth
                 float velocityAlongNormal1 = math.dot(velocity[index1], normal1);
                 float3 newVel1 = velocity[index1] - normal1 * velocityAlongNormal1;
                 float3 blendedVel1 = (1f - collisionSettings.selfCollisionVelocityConservation) * posDelta + (collisionSettings.selfCollisionVelocityConservation * newVel1);
+                blendedVel1 *= reciprocalWeight[index1];
 
                 float3 normal2 = normals[index2];
                 float velocityAlongNormal2 = math.dot(velocity[index2], normal2);
                 float3 newVel2 = velocity[index2] - normal2 * velocityAlongNormal2;
                 float3 blendedVel2 = (1f - collisionSettings.selfCollisionVelocityConservation) * -posDelta + (collisionSettings.selfCollisionVelocityConservation * newVel2);
+                blendedVel2 *= reciprocalWeight[index2];
+
 
                 // Friction - how much velocity is applied back
                 velocity[index1] = collisionSettings.selfCollisionFriction * blendedVel1 + (1f - collisionSettings.selfCollisionFriction) * velocity[index1];
