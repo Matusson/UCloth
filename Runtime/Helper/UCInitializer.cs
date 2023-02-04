@@ -11,7 +11,7 @@
         {
             cloth.materialProperties = new UCMaterial()
             {
-                stiffnessCoefficient = 1500,
+                stiffnessCoefficient = 2000,
                 dampingCoefficient = 10,
                 maxStretch = 1.01f,
                 energyConservation = 1f,
