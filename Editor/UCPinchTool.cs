@@ -39,8 +39,8 @@ namespace UCloth.Editor
         {
             if (cloth != null && nodeSelected)
             {
-                cloth.simData.cPinned.Remove(selectedNodeIndex);
-                cloth.simData.cPinnedLocalPos.RemoveAt(cloth.simData.cPinnedLocalPos.Length - 1);
+                cloth.simData.cReciprocalWeight[selectedNodeIndex] = 1f;
+                cloth.simData.cPinnedLocalPos.Remove(selectedNodeIndex);
             }
             nodeSelected = false;
             selectedNodeIndex = 0;
@@ -90,16 +90,15 @@ namespace UCloth.Editor
                 selectedNodeIndex = lowestIndex;
                 nodeSelected = true;
 
-                ushort pinnedIndex = (ushort)cloth.simData.cPinnedLocalPos.Length;
                 float3 localPos = cloth.transform.InverseTransformPoint(cloth.simData.cPositions[selectedNodeIndex]);
-                cloth.simData.cPinned.Add(selectedNodeIndex, pinnedIndex);
-                cloth.simData.cPinnedLocalPos.Add(localPos);
+                cloth.simData.cReciprocalWeight[selectedNodeIndex] = 0;
+                cloth.simData.cPinnedLocalPos.Add(selectedNodeIndex, localPos);
             }
             else
             {
                 float3 pos = Handles.PositionHandle(cloth.simData.cPositions[selectedNodeIndex], Quaternion.identity);
                 cloth.simData.cPositions[selectedNodeIndex] = pos;
-                cloth.simData.cPinnedLocalPos[cloth.simData.cPinnedLocalPos.Length - 1] = cloth.transform.InverseTransformPoint(pos);
+                cloth.simData.cPinnedLocalPos[selectedNodeIndex] = cloth.transform.InverseTransformPoint(pos);
             }
         }
     }

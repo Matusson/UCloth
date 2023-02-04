@@ -24,9 +24,12 @@ namespace UCloth
         public NativeArray<float3> cNormals;
         public NativeArray<float> cRestDistance;
 
-        // First value is the global ID of the node, second is "which of the pinned nodes is it"
-        public NativeParallelHashMap<ushort, ushort> cPinned;
-        public NativeList<float3> cPinnedLocalPos;
+        /// <summary>
+        /// The reciprocal of the weight. This is preferred to storing weight directly as it allows 0 to be used for pinned nodes,
+        /// and replaces division with multiplication (which tends to be faster)
+        /// </summary>
+        public NativeArray<float> cReciprocalWeight;
+        public NativeParallelHashMap<ushort, float3> cPinnedLocalPos;
 
         public void Dispose()
         {
@@ -40,7 +43,7 @@ namespace UCloth
             cNeighbours.Dispose();
             cNormals.Dispose();
             cRestDistance.Dispose();
-            cPinned.Dispose();
+            cReciprocalWeight.Dispose();
             cPinnedLocalPos.Dispose();
 
             if (cSelfCollisionRegions.IsCreated())

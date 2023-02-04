@@ -180,7 +180,7 @@ namespace UCloth
                 neighbours = simData.cNeighbours,
                 normals = simData.cNormals,
                 restDistances = simData.cRestDistance,
-                pinned = simData.cPinned,
+                reciprocalWeight = simData.cReciprocalWeight,
                 pinnedLocalPos = simData.cPinnedLocalPos,
 
                 material = materialProperties,
@@ -330,8 +330,6 @@ namespace UCloth
         /// </summary>
         private void UpdateAutooptimisation()
         {
-            Debug.Log(optimizationData.Value.averageNodesPerActiveCell + ", " + optimizationData.Value.averageSurroundingNodes);
-
             if (collisionProperties.AutoAdjustGridDensity != UCAutoAdjustGridOption.None)
                 collisionProperties.gridDensity = _ucOptimizer.OptimizeDensity(optimizationData.Value);
         }
@@ -461,19 +459,22 @@ namespace UCloth
         /// </summary>
         private void SetUpDataPinned()
         {
-            simData.cPinned = new NativeParallelHashMap<ushort, ushort>(simData.cPositions.Length, Allocator.Persistent);
-            simData.cPinnedLocalPos = new NativeList<float3>(64, Allocator.Persistent);
+            simData.cReciprocalWeight = new NativeArray<float>(simData.cPositions.Length, Allocator.Persistent);
+            simData.cPinnedLocalPos = new NativeParallelHashMap<ushort, float3>(64, Allocator.Persistent);
 
             ushort pinnedIndex = 0;
-            for (ushort i = 0; i < simData.cPositions.Length; i++)
+            for (ushort i = 0; i < simData.cReciprocalWeight.Length; i++)
             {
+                // Set initial weight
+                simData.cReciprocalWeight[i] = 1f;
+
                 float3 position = simData.cPositions[i];
                 foreach (var collider in pinColliders)
                 {
                     if (collider.bounds.Contains(position))
                     {
-                        simData.cPinned.Add(i, pinnedIndex);
-                        simData.cPinnedLocalPos.Add(transform.InverseTransformPoint(position));
+                        simData.cReciprocalWeight[i] = 0f;
+                        simData.cPinnedLocalPos.Add(i, transform.InverseTransformPoint(position));
                         pinnedIndex++;
                         break;
                     }

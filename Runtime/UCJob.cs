@@ -35,11 +35,12 @@ namespace UCloth
         public NativeArray<float> restDistances;
 
         [ReadOnly]
-        public NativeParallelHashMap<ushort, ushort> pinned;
+        public NativeArray<float> reciprocalWeight;
 
         // Local-space positions of pinned nodes for correction
+        // Pinned nodes have weight of 0
         [ReadOnly]
-        public NativeList<float3> pinnedLocalPos;
+        public NativeParallelHashMap<ushort, float3> pinnedLocalPos;
 
 
         [ReadOnly]
@@ -114,7 +115,7 @@ namespace UCloth
             // Adapted from https://en.wikipedia.org/wiki/Verlet_integration#Algorithmic_representation
             for (int i = 0; i < _nodeCount; i++)
             {
-                float3 acc = acceleration[i] / material.vertexMass;
+                float3 acc = acceleration[i];
                 float3 newPos = positions[i] + (velocity[i] * dt) + (acc * (dt * dt * 0.5f));
                 positions[i] = newPos;
 
@@ -127,7 +128,7 @@ namespace UCloth
 
             for (int i = 0; i < _nodeCount; i++)
             {
-                float3 acc = acceleration[i] / material.vertexMass;
+                float3 acc = acceleration[i];
                 float3 newVel = velocity[i] + (tempAcceleration[i] + acc) * (dt * 0.5f);
 
 
@@ -174,23 +175,15 @@ namespace UCloth
 
                 float correction = (distance - restDistance * material.maxStretch) / distance;
 
-                bool pin1 = pinned.ContainsKey(edge.nodeIndex1);
-                bool pin2 = pinned.ContainsKey(edge.nodeIndex2);
+                float totalWeight = reciprocalWeight[edge.nodeIndex1] + reciprocalWeight[edge.nodeIndex2];
+                float weightCorrection1 = reciprocalWeight[edge.nodeIndex1] / totalWeight;
+                float weightCorrection2 = reciprocalWeight[edge.nodeIndex2] / totalWeight;
 
-                if (pin1 || pin2)
-                    correction *= 2f;
+                positions[edge.nodeIndex1] = pos1 + vec1To2 * correction * weightCorrection1;
+                velocity[edge.nodeIndex1] = velocity[edge.nodeIndex1] + correction * weightCorrection1 * material.energyConservation * vec1To2;
 
-                if (!pin1)
-                {
-                    positions[edge.nodeIndex1] = pos1 + vec1To2 * correction;
-                    velocity[edge.nodeIndex1] = velocity[edge.nodeIndex1] + correction * material.energyConservation * vec1To2;
-                }
-
-                if (!pin2)
-                {
-                    positions[edge.nodeIndex2] = pos2 - vec1To2 * correction;
-                    velocity[edge.nodeIndex2] = velocity[edge.nodeIndex2] - correction * material.energyConservation * vec1To2;
-                }
+                positions[edge.nodeIndex2] = pos2 - vec1To2 * correction * weightCorrection2;
+                velocity[edge.nodeIndex2] = velocity[edge.nodeIndex2] - correction * weightCorrection2 * material.energyConservation * vec1To2;
 
             }
         }
@@ -465,8 +458,8 @@ namespace UCloth
 
                 float3 force = (material.stiffnessCoefficient * delta + material.dampingCoefficient * velocityAlongDistance) * dir1To2;
 
-                acceleration[edge.nodeIndex1] = acceleration[edge.nodeIndex1] + force * 0.5f;
-                acceleration[edge.nodeIndex2] = acceleration[edge.nodeIndex2] - force * 0.5f;
+                acceleration[edge.nodeIndex1] = acceleration[edge.nodeIndex1] + force * 0.5f * reciprocalWeight[edge.nodeIndex1] / material.vertexMass;
+                acceleration[edge.nodeIndex2] = acceleration[edge.nodeIndex2] - force * 0.5f * reciprocalWeight[edge.nodeIndex2] / material.vertexMass;
             }
         }
 
@@ -519,11 +512,11 @@ namespace UCloth
         {
             for (ushort i = 0; i < _nodeCount; i++)
             {
-                if (pinned.ContainsKey(i))
+                if (reciprocalWeight[i] < 0.00001f)
                 {
                     acceleration[i] = new();
                     velocity[i] = new();
-                    positions[i] = math.transform(localToWorldMatrix, pinnedLocalPos[pinned[i]]);
+                    positions[i] = math.transform(localToWorldMatrix, pinnedLocalPos[i]);
                 }
             }
         }

@@ -174,11 +174,11 @@ namespace UCloth
             {
                 Gizmos.color = Color.blue;
 
-                var pinned = _scheduler.simData.cPinned;
+                var weight = _scheduler.simData.cReciprocalWeight;
                 for (ushort i = 0; i < positions.Length; i++)
                 {
                     float3 position = positions[i];
-                    if (pinned.ContainsKey(i))
+                    if (weight[i] < 0.001f)
                         Gizmos.DrawCube(position, new(0.13f, 0.13f, 0.13f));
                 }
             }
