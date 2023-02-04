@@ -72,7 +72,7 @@ namespace UCloth
                 // And side triangles
                 for (int i = 0; i < _scheduler.initialMeshData.boundingEdges.Count; i++)
                 {
-                    var edge = _scheduler.simData.cEdges[_scheduler.initialMeshData.boundingEdges[i]];
+                    var edge = _scheduler.initialMeshData.boundingEdges[i];
                     var solidifiedEdge = new UCEdge((ushort)(edge.nodeIndex1 + vertOffset), (ushort)(edge.nodeIndex2 + vertOffset));
 
                     tris.Add(edge.nodeIndex1);

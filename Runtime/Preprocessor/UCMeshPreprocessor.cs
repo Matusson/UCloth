@@ -178,14 +178,14 @@ namespace UCloth
             }).ToList();
 
             // And reorganize the bounding edges so we only store indexes
-            List<int> boundingEdgeIndexes = new(_boundingEdges.Count);
+            List<UCEdge> boundinEdges = new(_boundingEdges.Count);
             for (int i = 0; i < _edges.Count; i++)
             {
                 var edge = _edges[i];
 
                 if (_boundingEdges.Contains(edge))
                 {
-                    boundingEdgeIndexes.Add(i);
+                    boundinEdges.Add(edge);
                 }
             }
 
@@ -206,7 +206,7 @@ namespace UCloth
                 positions = positions,
                 edges = _edges,
                 bendingEdges = bendingEdges,
-                boundingEdges = boundingEdgeIndexes,
+                boundingEdges = boundinEdges,
 
                 triangles = new NativeArray<int>(mesh.triangles, Allocator.Persistent),
                 neighbours = _neighbours,

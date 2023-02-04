@@ -12,7 +12,7 @@ namespace UCloth
         public List<float3> positions;
         public List<UCEdge> edges;
         public List<UCBendingEdge> bendingEdges;
-        public List<int> boundingEdges;
+        public List<UCEdge> boundingEdges;
 
         public NativeArray<int> triangles;
         public NativeParallelMultiHashMap<ushort, ushort> neighbours;
