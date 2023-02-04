@@ -7,19 +7,19 @@ using UnityEngine;
 namespace UCloth.Editor
 {
 
-    [EditorTool("Pinch Tool", typeof(UCloth))]
+    [EditorTool("Pinch Tool", typeof(UCCloth))]
     public class UCPinchTool : EditorTool
     {
         private bool nodeSelected;
         private ushort selectedNodeIndex;
 
-        UCloth cloth;
+        UCCloth cloth;
 
         // The second "context" argument accepts an EditorWindow type.
         [Shortcut("Activate Pinch Tool", typeof(SceneView), KeyCode.P)]
         public static void PinchToolShortcut()
         {
-            if (Selection.GetFiltered<UCloth>(SelectionMode.TopLevel).Length > 0)
+            if (Selection.GetFiltered<UCCloth>(SelectionMode.TopLevel).Length > 0)
                 ToolManager.SetActiveTool<UCPinchTool>();
             else
                 Debug.Log("No cloth objects selected!");
@@ -58,7 +58,7 @@ namespace UCloth.Editor
             if (target == null)
                 return;
 
-            cloth = target as UCloth;
+            cloth = target as UCCloth;
 
             // Select a node first
             if (!nodeSelected)

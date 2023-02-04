@@ -1,13 +1,13 @@
 ﻿namespace UCloth
 {
     /// <summary>
-    /// Initializes default values for <see cref="UCloth"/>.
+    /// Initializes default values for <see cref="UCCloth"/>.
     /// </summary>
     internal static class UCInitializer
     {
         // This class only exists as in this version of C#, it's not possible to initialize structs with default values.
 
-        internal static void Initialize(UCloth cloth)
+        internal static void Initialize(UCCloth cloth)
         {
             cloth.materialProperties = new UCMaterial()
             {

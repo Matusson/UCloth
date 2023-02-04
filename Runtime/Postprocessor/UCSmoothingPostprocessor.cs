@@ -11,9 +11,9 @@ namespace UCloth
     {
         private NativeArray<float3> resultsBuffer;
         private NativeArray<float3> positionBuffer;
-        private readonly UCloth _scheduler;
+        private readonly UCCloth _scheduler;
 
-        public UCSmoothingPostprocessor(UCloth scheduler)
+        public UCSmoothingPostprocessor(UCCloth scheduler)
         {
             _scheduler = scheduler;
         }

@@ -7,11 +7,11 @@ using UnityEngine;
 namespace UCloth
 {
     /// <summary>
-    /// Handles rendering the cloth simulated in <see cref="UCloth"/>
+    /// Handles rendering the cloth simulated in <see cref="UCCloth"/>
     /// </summary>
     internal class UCRenderer : IDisposable
     {
-        private readonly UCloth _scheduler;
+        private readonly UCCloth _scheduler;
         private readonly Transform _transform;
         private readonly MeshFilter _filter;
         private readonly MeshCollider _collider;
@@ -24,7 +24,7 @@ namespace UCloth
         private UCRenderingMeshData _data;
         private readonly int _rawVertexCount;
 
-        internal UCRenderer(UCloth scheduler, UCMeshData data, MeshFilter filter, MeshCollider collider)
+        internal UCRenderer(UCCloth scheduler, UCMeshData data, MeshFilter filter, MeshCollider collider)
         {
             _scheduler = scheduler;
             _transform = scheduler.transform;

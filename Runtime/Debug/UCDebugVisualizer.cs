@@ -45,12 +45,12 @@ namespace UCloth
         public int tempMaxElements = 1;
         public bool skipEmpty;
 
-        private UCloth _scheduler;
+        private UCCloth _scheduler;
         private Renderer _renderer;
 
         private void Start()
         {
-            _scheduler = GetComponent<UCloth>();
+            _scheduler = GetComponent<UCCloth>();
             _renderer = GetComponent<Renderer>();
         }
 

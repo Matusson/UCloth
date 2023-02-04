@@ -3,7 +3,7 @@
 namespace UCloth
 {
     /// <summary>
-    /// Represents a points query for <see cref="UCloth"/>.
+    /// Represents a points query for <see cref="UCCloth"/>.
     /// </summary>
     public struct UCPointQueryData
     {

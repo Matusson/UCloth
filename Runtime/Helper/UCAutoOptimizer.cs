@@ -5,13 +5,13 @@ using UnityEngine;
 namespace UCloth
 {
     /// <summary>
-    /// Provides functionality to automatically optimize parameters for <see cref="UCloth"/>
+    /// Provides functionality to automatically optimize parameters for <see cref="UCCloth"/>
     /// </summary>
     internal class UCAutoOptimizer
     {
-        private readonly UCloth _scheduler;
+        private readonly UCCloth _scheduler;
 
-        internal UCAutoOptimizer(UCloth scheduler)
+        internal UCAutoOptimizer(UCCloth scheduler)
         {
             _scheduler = scheduler;
         }

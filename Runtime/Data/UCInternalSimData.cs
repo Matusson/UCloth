@@ -5,7 +5,7 @@ using Unity.Mathematics;
 namespace UCloth
 {
     /// <summary>
-    /// Stores simulation data used by <see cref="UCloth"/>.
+    /// Stores simulation data used by <see cref="UCCloth"/>.
     /// </summary>
     public class UCInternalSimData : IDisposable
     {

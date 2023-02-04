@@ -15,7 +15,7 @@ namespace UCloth
     // NOTE: This class is also referred to as 'UCScheduler' or 'scheduler'.
     [RequireComponent(typeof(MeshFilter))]
     [RequireComponent(typeof(MeshRenderer))]
-    public class UCloth : MonoBehaviour
+    public class UCCloth : MonoBehaviour
     {
         public UCPreprocessorType preprocessorType;
 

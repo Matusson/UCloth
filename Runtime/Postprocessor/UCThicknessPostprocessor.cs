@@ -15,9 +15,9 @@ namespace UCloth
         private bool _firstRun = true;
         private int _originalTriCount;
 
-        private readonly UCloth _scheduler;
+        private readonly UCCloth _scheduler;
 
-        public UCThicknessPostprocessor(UCloth scheduler)
+        public UCThicknessPostprocessor(UCCloth scheduler)
         {
             _scheduler = scheduler;
         }
