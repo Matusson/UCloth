@@ -480,6 +480,34 @@ namespace UCloth
                     }
                 }
             }
+
+            // There might be edges which are fully pinned. There's no point computing those, so we discard them
+            List<UCEdge> tempEdges = new(simData.cEdges.Length);
+            List<float> tempEdgeLengths = new(simData.cEdges.Length);
+
+            for (int i = 0; i < simData.cEdges.Length; i++)
+            {
+                var edge = simData.cEdges[i];
+
+                if (simData.cReciprocalWeight[edge.nodeIndex1] > 0.0001f || simData.cReciprocalWeight[edge.nodeIndex2] > 0.0001f)
+                {
+                    tempEdges.Add(edge);
+                    tempEdgeLengths.Add(simData.cRestDistance[i]);
+                }
+            }
+
+            // Clear old data and replace with cleaned up data
+            simData.cEdges.Dispose();
+            simData.cEdges = new(tempEdges.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+
+            simData.cRestDistance.Dispose();
+            simData.cRestDistance = new(tempEdges.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+
+            for (int i = 0; i < simData.cEdges.Length; i++)
+            {
+                simData.cEdges[i] = tempEdges[i];
+                simData.cRestDistance[i] = tempEdgeLengths[i];
+            }
         }
     }
 }
