@@ -44,7 +44,7 @@
                 selfCollisionFriction = 0.9f,
                 selfCollisionVelocityConservation = 0.75f,
                 selfCollisionAccuracy = 1,
-                AutoAdjustGridDensity = true,
+                AutoAdjustGridDensity = UCAutoAdjustGridOption.Performance,
                 gridDensity = 1f
             };
         }

@@ -44,7 +44,7 @@ namespace UCloth
         public int selfCollisionAccuracy;
 
         [Tooltip("Automatically adjusts grid density for optimal performance. Disable if you want full control.")]
-        public bool AutoAdjustGridDensity;
+        public UCAutoAdjustGridOption AutoAdjustGridDensity;
 
         [Tooltip("Multiplier for grid density for spatial partitioning.")]
         public float gridDensity;

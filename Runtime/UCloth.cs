@@ -330,7 +330,9 @@ namespace UCloth
         /// </summary>
         private void UpdateAutooptimisation()
         {
-            if (collisionProperties.AutoAdjustGridDensity)
+            Debug.Log(optimizationData.Value.averageNodesPerActiveCell + ", " + optimizationData.Value.averageSurroundingNodes);
+
+            if (collisionProperties.AutoAdjustGridDensity != UCAutoAdjustGridOption.None)
                 collisionProperties.gridDensity = _ucOptimizer.OptimizeDensity(optimizationData.Value);
         }
 
