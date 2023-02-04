@@ -18,6 +18,9 @@ namespace UCloth
 
         internal NativeArray<float3> normals;
 
+        [WriteOnly]
+        internal NativeArray<float3> triangleNormals;
+
         [ReadOnly]
         internal NativeArray<int> renderToSimLookup;
 
@@ -35,6 +38,7 @@ namespace UCloth
 
                 // TODO: Since we're computing face normals anyway, see if using those for bending stiffness would create better results
                 float3 triangleNormal = CalculateTriangleNormal(vert1, vert2, vert3);
+                triangleNormals[i] = triangleNormal;
 
                 normals[vert1] += triangleNormal;
                 normals[vert2] += triangleNormal;

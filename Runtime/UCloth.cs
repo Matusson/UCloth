@@ -152,6 +152,7 @@ namespace UCloth
             {
                 vertices = simData.cPositions,
                 normals = simData.cNormals,
+                triangleNormals = simData.cTriangleNormals,
                 triangles = initialMeshData.triangles,
                 renderToSimLookup = initialMeshData.renderToSimLookup
             };
@@ -179,6 +180,7 @@ namespace UCloth
                 bendingEdges = simData.cBendingEdges,
                 neighbours = simData.cNeighbours,
                 normals = simData.cNormals,
+                normalsTriangles = simData.cTriangleNormals,
                 restDistances = simData.cRestDistance,
                 reciprocalWeight = simData.cReciprocalWeight,
                 pinnedLocalPos = simData.cPinnedLocalPos,
@@ -429,6 +431,7 @@ namespace UCloth
             simData.cBendingEdges = new NativeArray<UCBendingEdge>(data.bendingEdges.ToArray(), Allocator.Persistent);
             simData.cNeighbours = data.neighbours;
             simData.cNormals = new NativeArray<float3>(positions.Length, Allocator.Persistent);
+            simData.cTriangleNormals = new NativeArray<float3>(initialMeshData.triangles.Length, Allocator.Persistent);
 
             // The rest distance can be computed for every edge easily
             // This cannot be computed in the preprocessor! This is because if the mesh is scaled, it won't be reflected

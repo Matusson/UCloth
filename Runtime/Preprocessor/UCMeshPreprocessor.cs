@@ -95,6 +95,8 @@ namespace UCloth
             // Bounding edges are only referenced by 1 triangle.
             _boundingEdges = new();
 
+            Dictionary<UCTriangle, int> trianglesCache = new();
+
             int trisCount = mesh.triangles.Length / 3;
             for (int i = 0; i < trisCount; i++)
             {
@@ -113,6 +115,8 @@ namespace UCloth
                 ind1 = FindHashedIndex(pos1);
                 ind2 = FindHashedIndex(pos2);
                 ind3 = FindHashedIndex(pos3);
+
+                trianglesCache.Add(new UCTriangle((ushort)ind1, (ushort)ind2, (ushort)ind3), i);
 
                 // And then create edges from the specified indices
                 CreateEdge((ushort)ind1, (ushort)ind2);
@@ -158,8 +162,11 @@ namespace UCloth
 
                 if (commonNeighbours.Count == 2)
                 {
+                    int tri1 = trianglesCache[new UCTriangle(index1, index2, (ushort)commonNeighbours[0])];
+                    int tri2 = trianglesCache[new UCTriangle(index2, index1, (ushort)commonNeighbours[1])];
+
                     // Order shouldn't matter here
-                    UCBendingEdge bendingEdge = new(commonNeighbours[0], commonNeighbours[1]);
+                    UCBendingEdge bendingEdge = new(commonNeighbours[0], commonNeighbours[1], tri1, tri2);
                     bendingEdges.Add(bendingEdge);
                 }
             }

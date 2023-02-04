@@ -30,6 +30,9 @@ namespace UCloth
 
         [ReadOnly]
         public NativeArray<float3> normals;
+        [ReadOnly]
+        public NativeArray<float3> normalsTriangles;
+
 
         [ReadOnly]
         public NativeArray<float> restDistances;
@@ -473,8 +476,8 @@ namespace UCloth
             {
                 UCBendingEdge edge = bendingEdges[i];
 
-                float3 normal1 = normals[edge.bendingNode1];
-                float3 normal2 = normals[edge.bendingNode2];
+                float3 normal1 = normalsTriangles[edge.bendingTriangle1];
+                float3 normal2 = normalsTriangles[edge.bendingTriangle2];
 
                 float dot = math.dot(normal1, normal2);
                 dot = math.clamp(dot, -1f, 1f); // Due to matrix multiplication, normal might not be fully normalized

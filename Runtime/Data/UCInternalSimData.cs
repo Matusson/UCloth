@@ -22,6 +22,7 @@ namespace UCloth
         public NativeArray<UCBendingEdge> cBendingEdges;
         public NativeParallelMultiHashMap<ushort, ushort> cNeighbours;
         public NativeArray<float3> cNormals;
+        public NativeArray<float3> cTriangleNormals;
         public NativeArray<float> cRestDistance;
 
         /// <summary>
@@ -42,6 +43,7 @@ namespace UCloth
             cBendingEdges.Dispose();
             cNeighbours.Dispose();
             cNormals.Dispose();
+            cTriangleNormals.Dispose();
             cRestDistance.Dispose();
             cReciprocalWeight.Dispose();
             cPinnedLocalPos.Dispose();
