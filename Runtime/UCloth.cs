@@ -511,6 +511,25 @@ namespace UCloth
                 simData.cEdges[i] = tempEdges[i];
                 simData.cRestDistance[i] = tempEdgeLengths[i];
             }
+
+            // And then bending edges
+            List<UCBendingEdge> tempBending = new(simData.cBendingEdges);
+            for(int i = 0; i < simData.cBendingEdges.Length; i++)
+            {
+                var edge = simData.cBendingEdges[i];
+
+                if (simData.cReciprocalWeight[edge.bendingNode1] > 0.0001f || simData.cReciprocalWeight[edge.bendingNode2] > 0.0001f)
+                {
+                    tempBending.Add(edge);
+                }
+            }
+            simData.cBendingEdges.Dispose();
+            simData.cBendingEdges = new(tempBending.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+
+            for(int i = 0; i < simData.cBendingEdges.Length; i++)
+            {
+                simData.cBendingEdges[i] = tempBending[i];
+            }
         }
     }
 }
