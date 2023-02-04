@@ -4,6 +4,7 @@ using Unity.Burst;
 using Unity.Jobs;
 using UnityEngine;
 using System.Runtime.CompilerServices;
+using System;
 
 namespace UCloth
 {
@@ -492,17 +493,38 @@ namespace UCloth
                 UCJobHelper.GetSurroundingNodesNoAlloc(ref selfCollisionRegions, regionIndex, allNodes, 2);
 
                 // Now only select vertices within the radius
+                // We also keep track of the closest one in case 0 are found
+                ushort closestIndex = 0;
+                float minDist = float.MaxValue;
+                int queryResults = 0;
+
                 for (int j = 0; j < allNodes.Length; j++)
                 {
                     ushort index = allNodes[j];
                     float3 nodePos = positions[index];
 
                     float dist = math.distance(targetPosition, nodePos);
+
+                    // Update closest
+                    if (dist < minDist)
+                    {
+                        minDist = dist;
+                        closestIndex = index;
+                    }
+                    // Check distance
                     if (dist < queryData.radius)
                     {
                         pointQueryResults.Add(index);
                         indexCount++;
+                        queryResults++;
                     }
+                }
+
+                // Select the closest if none found
+                if(queryResults == 0)
+                {
+                    pointQueryResults.Add(closestIndex);
+                    indexCount++;
                 }
 
                 // Write the amount of results, so they can be used as start and end indices
