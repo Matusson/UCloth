@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -53,6 +56,13 @@ namespace UCloth
         internal UCMeshData initialMeshData;
         internal NativeReference<UCAutoOptimizeData> optimizationData;
 
+        // For point queries
+        private NativeList<UCPointQueryData> pointQueries;
+        private NativeList<ushort> pointQueryResults;
+        private NativeList<ushort> pointQueryIndexCounts;
+
+        private TaskCompletionSource<bool> waitForJobExecute;
+
         private int _lastSimFrequency;
         private float _timestep;
 
@@ -104,6 +114,10 @@ namespace UCloth
             if (optimizationData.IsCreated)
                 optimizationData.Dispose();
 
+            pointQueries.Dispose();
+            pointQueryResults.Dispose();
+            pointQueryIndexCounts.Dispose();
+
             for (int i = 0; i < postprocessors?.Count; i++)
             {
                 postprocessors[i]?.Dispose();
@@ -127,6 +141,32 @@ namespace UCloth
             UpdateTimer();
         }
 
+        // ----- PUBLIC APIs
+
+        public async Task<List<ushort>> QueryClosestPoints(UCPointQueryData query)
+        {
+            int queryIndex = pointQueries.Length;
+
+            pointQueries.Add(query);
+
+            waitForJobExecute ??= new();
+
+            await waitForJobExecute.Task;
+
+            // Results should be ready now
+            // Get start index for this query
+            int startIndex = queryIndex == 0 ? 0 : pointQueryIndexCounts[queryIndex - 1];
+
+            int endIndex = pointQueryIndexCounts[queryIndex];
+
+            // Read the results
+            List<ushort> results = new();
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                results.Add(pointQueryResults[i]);
+            }
+            return results;
+        }
 
         // ----- SCHEDULING CODE
 
@@ -174,7 +214,7 @@ namespace UCloth
                 tempAcceleration = simData.cTempAcceleration,
 
                 selfCollisionRegions = simData.cSelfCollisionRegions,
-                utilizedSelfColRegions = simData.cUtilizedSelfColRegions,
+                utilizedRegionSet = simData.cUtilizedSelfColRegions,
 
                 edges = simData.cEdges,
                 bendingEdges = simData.cBendingEdges,
@@ -197,12 +237,18 @@ namespace UCloth
                 extraThickness = thickness / 1000f,
                 qualityProperties = qualityProperties,
 
+                pointQueries = pointQueries,
+                pointQueryResults = pointQueryResults,
+                pointQueryIndexCounts = pointQueryIndexCounts,
+
                 bounds = _meshRenderer.bounds,
                 localToWorldMatrix = transform.localToWorldMatrix,
                 optimizationData = optimizationData
             };
 
             job.Run();
+            waitForJobExecute?.SetResult(true);
+            waitForJobExecute = null;
 
             UpdateAutooptimisation();
 
@@ -453,6 +499,11 @@ namespace UCloth
 
             optimizationData = new NativeReference<UCAutoOptimizeData>(Allocator.Persistent);
 
+            // Query data
+            pointQueries = new(Allocator.Persistent);
+            pointQueryResults = new(Allocator.Persistent);
+            pointQueryIndexCounts = new(Allocator.Persistent);
+
             SetUpDataPinned();
             return true;
         }
@@ -514,7 +565,7 @@ namespace UCloth
 
             // And then bending edges
             List<UCBendingEdge> tempBending = new(simData.cBendingEdges);
-            for(int i = 0; i < simData.cBendingEdges.Length; i++)
+            for (int i = 0; i < simData.cBendingEdges.Length; i++)
             {
                 var edge = simData.cBendingEdges[i];
 
@@ -526,7 +577,7 @@ namespace UCloth
             simData.cBendingEdges.Dispose();
             simData.cBendingEdges = new(tempBending.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
-            for(int i = 0; i < simData.cBendingEdges.Length; i++)
+            for (int i = 0; i < simData.cBendingEdges.Length; i++)
             {
                 simData.cBendingEdges[i] = tempBending[i];
             }

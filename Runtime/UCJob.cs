@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Burst;
 using Unity.Jobs;
 using UnityEngine;
+using System.Runtime.CompilerServices;
 
 namespace UCloth
 {
@@ -17,8 +18,10 @@ namespace UCloth
         public NativeArray<float3> tempAcceleration;
 
         internal Native3DHashmapArray<ushort> selfCollisionRegions;
-        internal NativeParallelHashSet<int3> utilizedSelfColRegions;
+        internal NativeParallelHashSet<int3> utilizedRegionSet;
 
+
+        // Edges 
         [ReadOnly]
         public NativeArray<UCEdge> edges;
 
@@ -26,16 +29,20 @@ namespace UCloth
         public NativeArray<UCBendingEdge> bendingEdges;
 
         [ReadOnly]
-        public NativeParallelMultiHashMap<ushort, ushort> neighbours;
+        public NativeArray<float> restDistances;
 
+
+        // Normals
         [ReadOnly]
         public NativeArray<float3> normals;
+
         [ReadOnly]
         public NativeArray<float3> normalsTriangles;
 
 
+        // Other
         [ReadOnly]
-        public NativeArray<float> restDistances;
+        public NativeParallelMultiHashMap<ushort, ushort> neighbours;
 
         [ReadOnly]
         public NativeArray<float> reciprocalWeight;
@@ -45,7 +52,7 @@ namespace UCloth
         [ReadOnly]
         public NativeParallelHashMap<ushort, float3> pinnedLocalPos;
 
-
+        // Colliders
         [ReadOnly]
         public NativeArray<SphereColDTO> sphereColliders;
 
@@ -54,6 +61,13 @@ namespace UCloth
 
         [ReadOnly]
         public NativeArray<CubeColDTO> cubeColliders;
+
+        // For point queries
+        public NativeList<UCPointQueryData> pointQueries;
+        [WriteOnly]
+        public NativeList<ushort> pointQueryResults;
+        [WriteOnly]
+        public NativeList<ushort> pointQueryIndexCounts;
 
         public Bounds bounds;
         public float4x4 localToWorldMatrix;
@@ -68,7 +82,7 @@ namespace UCloth
         public float baseTimestep;
         public float extraThickness;
 
-
+        private bool _computedRegions;
 
         private ushort _nodeCount;
         private int _edgeCount;
@@ -92,6 +106,7 @@ namespace UCloth
             _nodeCount = (ushort)positions.Length;
             _edgeCount = edges.Length;
             _bendingEdgeCount = bendingEdges.Length;
+            _computedRegions = false;
 
             float timestep = baseTimestep / qualityProperties.iterations;
 
@@ -107,6 +122,8 @@ namespace UCloth
 
             ApplyCollisions();
             ApplySelfCollisions();
+
+            SatisfyPointQueries();
         }
 
         /// <summary>
@@ -312,40 +329,20 @@ namespace UCloth
             if (!collisionSettings.enableSelfCollision)
                 return;
 
-            utilizedSelfColRegions.Clear();
-            NativeList<int3> regionsIndexes = new(64, Allocator.Temp);
-
-            // Spatial partitioning into the 3D "array"
-            for (ushort i = 0; i < _nodeCount; i++)
-            {
-                float3 pos = positions[i];
-                float3 relativePos = (pos - (float3)bounds.min) / bounds.size;
-                int3 index = (int3)math.trunc(relativePos * selfCollisionRegions.size);
-
-                // Ensure in bounds
-                index = math.clamp(index, new int3(0, 0, 0), selfCollisionRegions.size - new int3(1, 1, 1));
-
-                selfCollisionRegions.Add(index, i);
-
-                if (!utilizedSelfColRegions.Contains(index))
-                {
-                    utilizedSelfColRegions.Add(index);
-                    regionsIndexes.Add(index);
-                }
-            }
+            NativeList<int3> utilizedRegionIndices = ComputeSpatialPartitions();
 
             // Gather data for automatic optimization
-            float averageNodesPerActiveCell = (float)_nodeCount / regionsIndexes.Length;
+            float averageNodesPerActiveCell = (float)_nodeCount / utilizedRegionIndices.Length;
             float averageSurroundingNodes = 0f;
 
             NativeList<ushort> nodes = new(32, Allocator.Temp);
             NativeList<ushort> surrounding = new(64, Allocator.Temp);
 
-            for (int region = 0; region < regionsIndexes.Length; region++)
+            for (int region = 0; region < utilizedRegionIndices.Length; region++)
             {
                 nodes.Clear();
                 surrounding.Clear();
-                int3 index = regionsIndexes[region];
+                int3 index = utilizedRegionIndices[region];
 
                 // If no nodes located in this region
                 if (!selfCollisionRegions.TryGetItemsNoAlloc(index, ref nodes))
@@ -385,7 +382,7 @@ namespace UCloth
                 }
 
             }
-            averageSurroundingNodes /= regionsIndexes.Length;
+            averageSurroundingNodes /= utilizedRegionIndices.Length;
 
             optimizationData.Value = new UCAutoOptimizeData()
             {
@@ -394,48 +391,6 @@ namespace UCloth
             };
         }
 
-        private void CalculateSelfCollision(int index1, int index2)
-        {
-            // Do not process neighbouring vertices, otherwise self collision distance is pretty limited
-            if (neighbours.KeyContainsValue((ushort)index1, (ushort)index2) || neighbours.KeyContainsValue((ushort)index2, (ushort)index1))
-                return;
-
-            float3 posDiff = positions[index1] - positions[index2];
-            float dist = math.length(posDiff);
-
-            // Early discard if over the distance
-            if (dist < collisionSettings.selfCollisionDistance)
-            {
-                float3 ratio = collisionSettings.selfCollisionDistance / dist;
-                float forceScale = collisionSettings.selfCollisionStiffness / (2 * material.vertexMass);
-                float3 posDelta = forceScale * material.vertexMass * (posDiff - (posDiff * ratio));
-
-                positions[index1] = positions[index1] - posDelta * reciprocalWeight[index1];
-                positions[index2] = positions[index2] + posDelta * reciprocalWeight[index2];
-
-                // Remove velocity along the normal of the node
-                // This is not a perfect solution as it can cause jittering and some clipping
-                // However doing this along the collision vector is worse (more clipping), and not doing this at all causes velocity bleed
-                // To maintain stability, this is blended with posDelta. 
-
-                float3 normal1 = normals[index1];
-                float velocityAlongNormal1 = math.dot(velocity[index1], normal1);
-                float3 newVel1 = velocity[index1] - normal1 * velocityAlongNormal1;
-                float3 blendedVel1 = (1f - collisionSettings.selfCollisionVelocityConservation) * posDelta + (collisionSettings.selfCollisionVelocityConservation * newVel1);
-                blendedVel1 *= reciprocalWeight[index1];
-
-                float3 normal2 = normals[index2];
-                float velocityAlongNormal2 = math.dot(velocity[index2], normal2);
-                float3 newVel2 = velocity[index2] - normal2 * velocityAlongNormal2;
-                float3 blendedVel2 = (1f - collisionSettings.selfCollisionVelocityConservation) * -posDelta + (collisionSettings.selfCollisionVelocityConservation * newVel2);
-                blendedVel2 *= reciprocalWeight[index2];
-
-
-                // Friction - how much velocity is applied back
-                velocity[index1] = collisionSettings.selfCollisionFriction * blendedVel1 + (1f - collisionSettings.selfCollisionFriction) * velocity[index1];
-                velocity[index2] = collisionSettings.selfCollisionFriction * blendedVel2 + (1f - collisionSettings.selfCollisionFriction) * velocity[index2];
-            }
-        }
 
 
         //--- Forces
@@ -507,6 +462,133 @@ namespace UCloth
             }
         }
 
+
+
+        //--- Helpers
+        private void SatisfyPointQueries()
+        {
+            if (pointQueries.Length == 0)
+                return;
+
+            // Need to compute the spatial partitions if not already computed
+            if (!_computedRegions)
+                ComputeSpatialPartitions();
+
+            pointQueryResults.Clear();
+            pointQueryIndexCounts.Clear();
+
+            NativeList<ushort> allNodes = new(32, Allocator.Temp);
+            ushort indexCount = 0;
+
+            for (int i = 0; i < pointQueries.Length; i++)
+            {
+                var queryData = pointQueries[i];
+                float3 targetPosition = queryData.position;
+
+                // Find closest region
+                int3 regionIndex = FindClosestRegionIndex(targetPosition);
+
+                selfCollisionRegions.TryGetItemsNoAlloc(regionIndex, ref allNodes);
+                UCJobHelper.GetSurroundingNodesNoAlloc(ref selfCollisionRegions, regionIndex, allNodes, 2);
+
+                // Now only select vertices within the radius
+                for (int j = 0; j < allNodes.Length; j++)
+                {
+                    ushort index = allNodes[j];
+                    float3 nodePos = positions[index];
+
+                    float dist = math.distance(targetPosition, nodePos);
+                    if (dist < queryData.radius)
+                    {
+                        pointQueryResults.Add(index);
+                        indexCount++;
+                    }
+                }
+
+                // Write the amount of results, so they can be used as start and end indices
+                pointQueryIndexCounts.Add(indexCount);
+            }
+
+            // Completed the queries
+            pointQueries.Clear();
+        }
+
+        private void CalculateSelfCollision(int index1, int index2)
+        {
+            // Do not process neighbouring vertices, otherwise self collision distance is pretty limited
+            if (neighbours.KeyContainsValue((ushort)index1, (ushort)index2) || neighbours.KeyContainsValue((ushort)index2, (ushort)index1))
+                return;
+
+            float3 posDiff = positions[index1] - positions[index2];
+            float dist = math.length(posDiff);
+
+            // Early discard if over the distance
+            if (dist < collisionSettings.selfCollisionDistance)
+            {
+                float3 ratio = collisionSettings.selfCollisionDistance / dist;
+                float forceScale = collisionSettings.selfCollisionStiffness / (2 * material.vertexMass);
+                float3 posDelta = forceScale * material.vertexMass * (posDiff - (posDiff * ratio));
+
+                positions[index1] = positions[index1] - posDelta * reciprocalWeight[index1];
+                positions[index2] = positions[index2] + posDelta * reciprocalWeight[index2];
+
+                // Remove velocity along the normal of the node
+                // This is not a perfect solution as it can cause jittering and some clipping
+                // However doing this along the collision vector is worse (more clipping), and not doing this at all causes velocity bleed
+                // To maintain stability, this is blended with posDelta. 
+
+                float3 normal1 = normals[index1];
+                float velocityAlongNormal1 = math.dot(velocity[index1], normal1);
+                float3 newVel1 = velocity[index1] - normal1 * velocityAlongNormal1;
+                float3 blendedVel1 = (1f - collisionSettings.selfCollisionVelocityConservation) * posDelta + (collisionSettings.selfCollisionVelocityConservation * newVel1);
+                blendedVel1 *= reciprocalWeight[index1];
+
+                float3 normal2 = normals[index2];
+                float velocityAlongNormal2 = math.dot(velocity[index2], normal2);
+                float3 newVel2 = velocity[index2] - normal2 * velocityAlongNormal2;
+                float3 blendedVel2 = (1f - collisionSettings.selfCollisionVelocityConservation) * -posDelta + (collisionSettings.selfCollisionVelocityConservation * newVel2);
+                blendedVel2 *= reciprocalWeight[index2];
+
+
+                // Friction - how much velocity is applied back
+                velocity[index1] = collisionSettings.selfCollisionFriction * blendedVel1 + (1f - collisionSettings.selfCollisionFriction) * velocity[index1];
+                velocity[index2] = collisionSettings.selfCollisionFriction * blendedVel2 + (1f - collisionSettings.selfCollisionFriction) * velocity[index2];
+            }
+        }
+
+        private NativeList<int3> ComputeSpatialPartitions()
+        {
+            utilizedRegionSet.Clear();
+            NativeList<int3> utilizedRegionIndices = new(64, Allocator.Temp);
+
+            // Spatial partitioning into the 3D "array"
+            for (ushort i = 0; i < _nodeCount; i++)
+            {
+                float3 pos = positions[i];
+                int3 index = FindClosestRegionIndex(pos);
+
+                // Ensure in bounds
+                index = math.clamp(index, new int3(0, 0, 0), selfCollisionRegions.size - new int3(1, 1, 1));
+
+                selfCollisionRegions.Add(index, i);
+
+                if (!utilizedRegionSet.Contains(index))
+                {
+                    utilizedRegionSet.Add(index);
+                    utilizedRegionIndices.Add(index);
+                }
+            }
+            _computedRegions = true;
+            return utilizedRegionIndices;
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int3 FindClosestRegionIndex(float3 position)
+        {
+            float3 relativePos = (position - (float3)bounds.min) / bounds.size;
+            return (int3)math.trunc(relativePos * selfCollisionRegions.size);
+        }
 
         /// <summary>
         /// Resets pinned nodes so they don't move.
