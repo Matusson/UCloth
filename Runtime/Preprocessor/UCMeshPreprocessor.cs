@@ -13,10 +13,11 @@ namespace UCloth
     public class UCMeshPreprocessor : IUCPreprocessor
     {
         private List<UCEdge> _edges;
-        private HashSet<UCEdge> _boundingEdges;
+        private Dictionary<UCEdge, int> _edgeRefCount;
 
-        private Dictionary<float3, int> _hashedVertices;
+        private Dictionary<float3, ushort> _hashedVertices;
         private NativeParallelMultiHashMap<ushort, ushort> _neighbours;
+
 
         /// <param name="input"> Mesh to convert to sim data. </param>
         public bool ConvertMeshData(object input, out UCMeshData data)
@@ -52,7 +53,7 @@ namespace UCloth
             // As we only keep the simulation data in those arrays, accessing them for rendering is problematic (as duplicated indexes are skipped)
             // So we store a lookup for which rendering vertex is which sim index.
             NativeArray<int> renderToSimLookup = new(mesh.vertexCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-            int uniqueVertId = 0;
+            ushort uniqueVertId = 0;
 
             for (int i = 0; i < mesh.vertexCount; i++)
             {
@@ -91,9 +92,9 @@ namespace UCloth
             // Three edges can be formed between these indices:
             // 1 - 2, 2 - 3, 1 - 3
 
-            // Additionally, during this process we find the bounding edges, which will be used to create a "rim" for meshes with thickness.
+            // Additionally, during this process we count the number of references per edge, to then find bounding edges
             // Bounding edges are only referenced by 1 triangle.
-            _boundingEdges = new();
+            _edgeRefCount = new();
 
             Dictionary<UCTriangle, int> trianglesCache = new();
 
@@ -108,20 +109,42 @@ namespace UCloth
 
                 // Some vertices might no longer be valid, because some were discarded in position stage
                 // So we look at the hashed values instead
-                float3 pos1 = mesh.vertices[ind1];
-                float3 pos2 = mesh.vertices[ind2];
-                float3 pos3 = mesh.vertices[ind3];
+                UCEdge edge1 = GetHashedEdge(mesh, ind1, ind2);
+                UCEdge edge2 = GetHashedEdge(mesh, ind2, ind3);
+                UCEdge edge3 = GetHashedEdge(mesh, ind1, ind3);
 
-                ind1 = FindHashedIndex(pos1);
-                ind2 = FindHashedIndex(pos2);
-                ind3 = FindHashedIndex(pos3);
-
-                trianglesCache.Add(new UCTriangle((ushort)ind1, (ushort)ind2, (ushort)ind3), i);
+                trianglesCache.Add(new UCTriangle(edge1.nodeIndex1, edge1.nodeIndex2, edge2.nodeIndex2), i);
 
                 // And then create edges from the specified indices
-                CreateEdge((ushort)ind1, (ushort)ind2);
-                CreateEdge((ushort)ind2, (ushort)ind3);
-                CreateEdge((ushort)ind1, (ushort)ind3);
+                CreateEdge(edge1);
+                CreateEdge(edge2);
+                CreateEdge(edge3);
+            }
+
+            // Then identify bounding edges by reference count
+            List<UCEdge> boundingEdges = new();
+            for (int i = 0; i < trisCount; i++)
+            {
+                int triangleIndex = i * 3;
+
+                int ind1 = mesh.triangles[triangleIndex];
+                int ind2 = mesh.triangles[triangleIndex + 1];
+                int ind3 = mesh.triangles[triangleIndex + 2];
+
+                // Same idea as above
+                UCEdge edge1 = GetHashedEdge(mesh, ind1, ind2);
+                UCEdge edge2 = GetHashedEdge(mesh, ind2, ind3);
+                UCEdge edge3 = GetHashedEdge(mesh, ind1, ind3);
+
+                // Referenced once are bounding edges
+                if (_edgeRefCount[edge1] == 1)
+                    boundingEdges.Add(new UCEdge((ushort)ind1, (ushort)ind2));
+
+                if (_edgeRefCount[edge2] == 1)
+                    boundingEdges.Add(new UCEdge((ushort)ind2, (ushort)ind3));
+
+                if (_edgeRefCount[edge3] == 1)
+                    boundingEdges.Add(new UCEdge((ushort)ind1, (ushort)ind3));
             }
 
 
@@ -177,18 +200,6 @@ namespace UCloth
                 return (positions[e.nodeIndex1] + positions[e.nodeIndex2]).y;
             }).ToList();
 
-            // And reorganize the bounding edges so we only store indexes
-            List<UCEdge> boundinEdges = new(_boundingEdges.Count);
-            for (int i = 0; i < _edges.Count; i++)
-            {
-                var edge = _edges[i];
-
-                if (_boundingEdges.Contains(edge))
-                {
-                    boundinEdges.Add(edge);
-                }
-            }
-
             // Check if there were any stray vertices, not connected by any edges
             HashSet<ushort> usedVertices = new(positions.Count);
             for(int i = 0; i < _edges.Count; i++)
@@ -206,7 +217,7 @@ namespace UCloth
                 positions = positions,
                 edges = _edges,
                 bendingEdges = bendingEdges,
-                boundingEdges = boundinEdges,
+                boundingEdges = boundingEdges,
 
                 triangles = new NativeArray<int>(mesh.triangles, Allocator.Persistent),
                 neighbours = _neighbours,
@@ -223,27 +234,41 @@ namespace UCloth
         /// <summary>
         /// Creates an edge from given indices, checks for doubling.
         /// </summary>
-        /// <param name="index1"></param>
-        /// <param name="index2"></param>
-        private void CreateEdge(ushort index1, ushort index2)
+        /// <param name="hashedIndex1"></param>
+        /// <param name="hashedIndex2"></param>
+        private void CreateEdge(UCEdge edge)
         {
-            UCEdge edge = new(index1, index2);
-
             if (!DoesEdgeAlreadyExist(edge))
             {
                 _edges.Add(edge);
 
-                _neighbours.Add(index1, index2);
-                _neighbours.Add(index2, index1);
+                _neighbours.Add(edge.nodeIndex1, edge.nodeIndex2);
+                _neighbours.Add(edge.nodeIndex2, edge.nodeIndex1);
+            }
 
-                // Edge first referenced, so could be a bounding edge
-                _boundingEdges.Add(edge);
-            }
-            // 2nd or higher reference to the mesh, so not a bounding edge
+            // Count edge reference
+            bool alreadyContains = _edgeRefCount.ContainsKey(edge);
+            int refCount = alreadyContains ? _edgeRefCount[edge] : 0;
+
+            if (!alreadyContains)
+                _edgeRefCount.Add(edge, refCount + 1);
             else
-            {
-                _boundingEdges.Remove(edge);
-            }
+                _edgeRefCount[edge] = refCount + 1;
+        }
+
+        /// <summary>
+        /// Creates an edge using hashed indices.
+        /// </summary>
+        /// <returns></returns>
+        private UCEdge GetHashedEdge(Mesh mesh, int index1, int index2)
+        {
+            float3 pos1 = mesh.vertices[index1];
+            float3 pos2 = mesh.vertices[index2];
+
+            ushort ind1Hashed = FindHashedIndex(pos1);
+            ushort ind2Hashed = FindHashedIndex(pos2);
+
+            return new UCEdge(ind1Hashed, ind2Hashed);
         }
 
         /// <summary>
@@ -252,7 +277,7 @@ namespace UCloth
         /// <param name="pos"></param>
         /// <returns></returns>
         /// <exception cref="Exception"> Thrown when position wasn't hashed before. </exception>
-        private int FindHashedIndex(float3 pos)
+        private ushort FindHashedIndex(float3 pos)
         {
             if (!_hashedVertices.ContainsKey(pos))
             {
