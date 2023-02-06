@@ -197,6 +197,9 @@ namespace UCloth
                 float correction = (distance - restDistance * material.maxStretch) / distance;
 
                 float totalWeight = reciprocalWeight[edge.nodeIndex1] + reciprocalWeight[edge.nodeIndex2];
+                if (totalWeight < 0.0001f)  // If two nodes are pinned at the same time, division below is a problem
+                    continue;
+
                 float weightCorrection1 = reciprocalWeight[edge.nodeIndex1] / totalWeight;
                 float weightCorrection2 = reciprocalWeight[edge.nodeIndex2] / totalWeight;
 
