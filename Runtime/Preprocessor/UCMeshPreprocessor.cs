@@ -144,7 +144,7 @@ namespace UCloth
                     boundingEdges.Add(new UCEdge((ushort)ind2, (ushort)ind3));
 
                 if (_edgeRefCount[edge3] == 1)
-                    boundingEdges.Add(new UCEdge((ushort)ind1, (ushort)ind3));
+                    boundingEdges.Add(new UCEdge((ushort)ind3, (ushort)ind1));
             }
 
 
