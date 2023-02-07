@@ -59,7 +59,7 @@ namespace UCloth
             if (_scheduler == null)
                 return;
 
-            var positions = _scheduler.simData.cPositions;
+            var positions = _scheduler.simData.positionsReadOnly;
 
             // POSITIONS
             if (visualizePositions)
@@ -74,7 +74,7 @@ namespace UCloth
             // NORMALS
             if (visualizeNormals)
             {
-                var normals = _scheduler.simData.cNormals;
+                var normals = _scheduler.simData.normalsReadOnly;
 
                 for (int i = 0; i < normals.Length; i++)
                 {
@@ -99,7 +99,7 @@ namespace UCloth
             if (visualizeRelations)
             {
                 Gizmos.color = Color.red;
-                var edges = _scheduler.simData.cEdges;
+                var edges = _scheduler.simData.edgesReadOnly;
 
                 int edgeIndex = 0;
                 foreach (var edge in edges)
@@ -108,7 +108,7 @@ namespace UCloth
                     Vector3 tgtPosition = positions[edge.nodeIndex2];
 
                     //Color info
-                    float expectedDistance = _scheduler.simData.cRestDistance[edgeIndex];
+                    float expectedDistance = _scheduler.simData.restDistancesReadOnly[edgeIndex];
                     float realDistance = math.distance(ogPosition, tgtPosition);
                     float error = (realDistance - expectedDistance) / expectedDistance;
 
@@ -143,7 +143,7 @@ namespace UCloth
             if (visualizeVelocity)
             {
                 Gizmos.color = Color.white;
-                var velocities = _scheduler.simData.cVelocity;
+                var velocities = _scheduler.simData.velocityReadOnly;
 
                 for (int i = 0; i < positions.Length; i++)
                 {
@@ -174,7 +174,7 @@ namespace UCloth
             {
                 Gizmos.color = Color.blue;
 
-                var weight = _scheduler.simData.cReciprocalWeight;
+                var weight = _scheduler.simData.reciprocalWeight;
                 for (ushort i = 0; i < positions.Length; i++)
                 {
                     float3 position = positions[i];

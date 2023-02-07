@@ -39,8 +39,8 @@ namespace UCloth.Editor
         {
             if (cloth != null && nodeSelected)
             {
-                cloth.simData.cReciprocalWeight[selectedNodeIndex] = 1f;
-                cloth.simData.cPinnedLocalPos.Remove(selectedNodeIndex);
+                cloth.simData.reciprocalWeight[selectedNodeIndex] = 1f;
+                cloth.simData.pinnedLocalPositions.Remove(selectedNodeIndex);
             }
             nodeSelected = false;
             selectedNodeIndex = 0;
@@ -77,9 +77,9 @@ namespace UCloth.Editor
 
                 ushort lowestIndex = 0;
                 float lowestDistance = 100000;
-                for (ushort i = 0; i < cloth.simData.cPositions.Length; i++)
+                for (ushort i = 0; i < cloth.simData.positionsReadOnly.Length; i++)
                 {
-                    float dist = math.distancesq(hitPoint, cloth.simData.cPositions[i]);
+                    float dist = math.distancesq(hitPoint, cloth.simData.positionsReadOnly[i]);
 
                     if (dist < lowestDistance)
                     {
@@ -90,15 +90,15 @@ namespace UCloth.Editor
                 selectedNodeIndex = lowestIndex;
                 nodeSelected = true;
 
-                float3 localPos = cloth.transform.InverseTransformPoint(cloth.simData.cPositions[selectedNodeIndex]);
-                cloth.simData.cReciprocalWeight[selectedNodeIndex] = 0;
-                cloth.simData.cPinnedLocalPos.Add(selectedNodeIndex, localPos);
+                float3 localPos = cloth.transform.InverseTransformPoint(cloth.simData.positionsReadOnly[selectedNodeIndex]);
+                cloth.simData.reciprocalWeight[selectedNodeIndex] = 0;
+                cloth.simData.pinnedLocalPositions.Add(selectedNodeIndex, localPos);
             }
             else
             {
-                float3 pos = Handles.PositionHandle(cloth.simData.cPositions[selectedNodeIndex], Quaternion.identity);
-                cloth.simData.cPositions[selectedNodeIndex] = pos;
-                cloth.simData.cPinnedLocalPos[selectedNodeIndex] = cloth.transform.InverseTransformPoint(pos);
+                float3 pos = Handles.PositionHandle(cloth.simData.positionsReadOnly[selectedNodeIndex], Quaternion.identity);
+                cloth.simData.positionsReadOnly[selectedNodeIndex] = pos;
+                cloth.simData.pinnedLocalPositions[selectedNodeIndex] = cloth.transform.InverseTransformPoint(pos);
             }
         }
     }

@@ -49,7 +49,7 @@ namespace UCloth
             UCSmoothingJob smoothingJob = new()
             {
                 // Using scheduler data instead of rendering data as we need it in world space
-                currentPositions = _scheduler.simData.cPositions,
+                currentPositions = _scheduler.simData.positionsReadOnly,
                 historicalPositions = positionBuffer,
                 smoothedPositionsLocalSpace = resultsBuffer,
                 smoothingAlpha = alpha,

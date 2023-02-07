@@ -15,8 +15,8 @@ namespace UCloth
 
         public NativeArray<float3> positions;
         public NativeArray<float3> velocity;
-        public NativeArray<float3> acceleration;
-        public NativeArray<float3> tempAcceleration;
+        internal NativeArray<float3> acceleration;
+        internal NativeArray<float3> tempAcceleration;
 
         internal Native3DHashmapArray<ushort> selfCollisionRegions;
         internal NativeParallelHashSet<int3> utilizedRegionSet;
@@ -64,6 +64,7 @@ namespace UCloth
         public NativeArray<CubeColDTO> cubeColliders;
 
         // For point queries
+        [ReadOnly]
         public NativeList<UCPointQueryData> pointQueries;
         [WriteOnly]
         public NativeList<ushort> pointQueryResults;
@@ -533,9 +534,6 @@ namespace UCloth
                 // Write the amount of results, so they can be used as start and end indices
                 pointQueryIndexCounts.Add(indexCount);
             }
-
-            // Completed the queries
-            pointQueries.Clear();
         }
 
         private void CalculateSelfCollision(int index1, int index2)

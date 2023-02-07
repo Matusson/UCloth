@@ -61,6 +61,7 @@ namespace UCloth
         private NativeList<ushort> pointQueryResults;
         private NativeList<ushort> pointQueryIndexCounts;
 
+        private JobHandle? _job;
         private TaskCompletionSource<bool> waitForJobExecute;
 
         private int _lastSimFrequency;
@@ -93,6 +94,8 @@ namespace UCloth
 
         private void OnDestroy()
         {
+            _job?.Complete();
+
             simData?.Dispose();
 
             if (sphereColDTOs.IsCreated)
@@ -146,11 +149,14 @@ namespace UCloth
         public async Task<List<ushort>> QueryClosestPoints(UCPointQueryData query)
         {
             int queryIndex = pointQueries.Length;
-
             pointQueries.Add(query);
 
+            // Wait until current execution has finished
             waitForJobExecute ??= new();
+            await waitForJobExecute.Task;
 
+
+            waitForJobExecute = new();
             await waitForJobExecute.Task;
 
             // Results should be ready now
@@ -165,6 +171,8 @@ namespace UCloth
             {
                 results.Add(pointQueryResults[i]);
             }
+
+            pointQueries.RemoveAt(queryIndex);
             return results;
         }
 
@@ -179,32 +187,39 @@ namespace UCloth
             ScheduleStart();
         }
 
+        private NativeList<UCPointQueryData> queryCopy;
+
         /// <summary>
         /// Schedules a simulation to take place in the background.
         /// </summary>
         private void ScheduleStart()
         {
             // Clear out previous normals
-            for (int i = 0; i < simData.cNormals.Length; i++)
-                simData.cNormals[i] = new float3();
+            for (int i = 0; i < simData.normalsReadOnly.Length; i++)
+                simData.normalsReadOnly[i] = new float3();
 
             UCNormalComputeJob normalJob = new()
             {
-                vertices = simData.cPositions,
-                normals = simData.cNormals,
-                triangleNormals = simData.cTriangleNormals,
+                vertices = simData.positionsReadOnly,
+                normals = simData.normalsReadOnly,
+                triangleNormals = simData.triangleNormalsReadOnly,
                 triangles = initialMeshData.triangles,
                 renderToSimLookup = initialMeshData.renderToSimLookup
             };
             normalJob.Run();
-            _ucRenderer.UpdateRenderingNormals(simData.cNormals);
-
+            _ucRenderer.UpdateRenderingNormals(simData.normalsReadOnly);
 
             UpdateColliderDTOs();
             VerifyDataValidity();
 
             _timestep = Time.timeScale * qualityProperties.timeScaleMultiplier / qualityProperties.simFrequency;
             _timestep = math.clamp(_timestep, 0f, qualityProperties.maxTimestep);
+
+            // Copy data that might be written to by the Job
+            simData.CopyWriteableData();
+
+            queryCopy = new(pointQueries.Capacity, Allocator.TempJob);
+            queryCopy.CopyFrom(pointQueries);
 
             UCJob job = new()
             {
@@ -216,14 +231,14 @@ namespace UCloth
                 selfCollisionRegions = simData.cSelfCollisionRegions,
                 utilizedRegionSet = simData.cUtilizedSelfColRegions,
 
-                edges = simData.cEdges,
-                bendingEdges = simData.cBendingEdges,
-                neighbours = simData.cNeighbours,
-                normals = simData.cNormals,
-                normalsTriangles = simData.cTriangleNormals,
-                restDistances = simData.cRestDistance,
+                edges = simData.edgesReadOnly,
+                bendingEdges = simData.bendingEdgesReadOnly,
+                neighbours = simData.neighboursReadOnly,
+                normals = simData.normalsReadOnly,
+                normalsTriangles = simData.triangleNormalsReadOnly,
+                restDistances = simData.restDistancesReadOnly,
                 reciprocalWeight = simData.cReciprocalWeight,
-                pinnedLocalPos = simData.cPinnedLocalPos,
+                pinnedLocalPos = simData.cPinnedLocalPositions,
 
                 material = materialProperties,
                 collisionSettings = collisionProperties,
@@ -237,7 +252,7 @@ namespace UCloth
                 extraThickness = thickness / 1000f,
                 qualityProperties = qualityProperties,
 
-                pointQueries = pointQueries,
+                pointQueries = queryCopy,
                 pointQueryResults = pointQueryResults,
                 pointQueryIndexCounts = pointQueryIndexCounts,
 
@@ -246,7 +261,19 @@ namespace UCloth
                 optimizationData = optimizationData
             };
 
-            job.Run();
+            _job = job.Schedule();
+        }
+
+        /// <summary>
+        /// Fetches the result of the simulation.
+        /// </summary>
+        private void ScheduleFinish()
+        {
+            if (_job == null)
+                return;
+
+            _job.Value.Complete();
+
             waitForJobExecute?.SetResult(true);
             waitForJobExecute = null;
 
@@ -256,14 +283,11 @@ namespace UCloth
             sphereColDTOs.Dispose();
             capsuleColDTOs.Dispose();
             cubeColDTOs.Dispose();
-        }
 
-        /// <summary>
-        /// Fetches the result of the simulation.
-        /// </summary>
-        private void ScheduleFinish()
-        {
+            // Clear query arrays
+            queryCopy.Dispose();
 
+            _job = null;
         }
 
 
@@ -473,21 +497,21 @@ namespace UCloth
 
             // Transform data to NativeArrays
             simData.cPositions = new NativeArray<float3>(positions, Allocator.Persistent);
-            simData.cEdges = new NativeArray<UCEdge>(data.edges.ToArray(), Allocator.Persistent);
-            simData.cBendingEdges = new NativeArray<UCBendingEdge>(data.bendingEdges.ToArray(), Allocator.Persistent);
-            simData.cNeighbours = data.neighbours;
-            simData.cNormals = new NativeArray<float3>(positions.Length, Allocator.Persistent);
-            simData.cTriangleNormals = new NativeArray<float3>(initialMeshData.triangles.Length, Allocator.Persistent);
+            simData.edgesReadOnly = new NativeArray<UCEdge>(data.edges.ToArray(), Allocator.Persistent);
+            simData.bendingEdgesReadOnly = new NativeArray<UCBendingEdge>(data.bendingEdges.ToArray(), Allocator.Persistent);
+            simData.neighboursReadOnly = data.neighbours;
+            simData.normalsReadOnly = new NativeArray<float3>(positions.Length, Allocator.Persistent);
+            simData.triangleNormalsReadOnly = new NativeArray<float3>(initialMeshData.triangles.Length, Allocator.Persistent);
 
             // The rest distance can be computed for every edge easily
             // This cannot be computed in the preprocessor! This is because if the mesh is scaled, it won't be reflected
-            simData.cRestDistance = new NativeArray<float>(simData.cEdges.Length, Allocator.Persistent);
+            simData.restDistancesReadOnly = new NativeArray<float>(simData.edgesReadOnly.Length, Allocator.Persistent);
             for (int i = 0; i < data.edges.Count; i++)
             {
                 UCEdge edge = data.edges[i];
 
                 float distance = math.distance(positions[edge.nodeIndex1], positions[edge.nodeIndex2]);
-                simData.cRestDistance[i] = distance;
+                simData.restDistancesReadOnly[i] = distance;
             }
 
             // Velocity is initialized to 0
@@ -505,6 +529,8 @@ namespace UCloth
             pointQueryIndexCounts = new(Allocator.Persistent);
 
             SetUpDataPinned();
+            simData.PrepareCopies();
+            simData.CopyWriteableData();
             return true;
         }
 
@@ -513,22 +539,22 @@ namespace UCloth
         /// </summary>
         private void SetUpDataPinned()
         {
-            simData.cReciprocalWeight = new NativeArray<float>(simData.cPositions.Length, Allocator.Persistent);
-            simData.cPinnedLocalPos = new NativeParallelHashMap<ushort, float3>(64, Allocator.Persistent);
+            simData.reciprocalWeight = new NativeArray<float>(simData.cPositions.Length, Allocator.Persistent);
+            simData.pinnedLocalPositions = new NativeParallelHashMap<ushort, float3>(64, Allocator.Persistent);
 
             ushort pinnedIndex = 0;
-            for (ushort i = 0; i < simData.cReciprocalWeight.Length; i++)
+            for (ushort i = 0; i < simData.reciprocalWeight.Length; i++)
             {
                 // Set initial weight
-                simData.cReciprocalWeight[i] = 1f;
+                simData.reciprocalWeight[i] = 1f;
 
                 float3 position = simData.cPositions[i];
                 foreach (var collider in pinColliders)
                 {
                     if (collider.bounds.Contains(position))
                     {
-                        simData.cReciprocalWeight[i] = 0f;
-                        simData.cPinnedLocalPos.Add(i, transform.InverseTransformPoint(position));
+                        simData.reciprocalWeight[i] = 0f;
+                        simData.pinnedLocalPositions.Add(i, transform.InverseTransformPoint(position));
                         pinnedIndex++;
                         break;
                     }
@@ -536,50 +562,50 @@ namespace UCloth
             }
 
             // There might be edges which are fully pinned. There's no point computing those, so we discard them
-            List<UCEdge> tempEdges = new(simData.cEdges.Length);
-            List<float> tempEdgeLengths = new(simData.cEdges.Length);
+            List<UCEdge> tempEdges = new(simData.edgesReadOnly.Length);
+            List<float> tempEdgeLengths = new(simData.edgesReadOnly.Length);
 
-            for (int i = 0; i < simData.cEdges.Length; i++)
+            for (int i = 0; i < simData.edgesReadOnly.Length; i++)
             {
-                var edge = simData.cEdges[i];
+                var edge = simData.edgesReadOnly[i];
 
-                if (simData.cReciprocalWeight[edge.nodeIndex1] > 0.0001f || simData.cReciprocalWeight[edge.nodeIndex2] > 0.0001f)
+                if (simData.reciprocalWeight[edge.nodeIndex1] > 0.0001f || simData.reciprocalWeight[edge.nodeIndex2] > 0.0001f)
                 {
                     tempEdges.Add(edge);
-                    tempEdgeLengths.Add(simData.cRestDistance[i]);
+                    tempEdgeLengths.Add(simData.restDistancesReadOnly[i]);
                 }
             }
 
             // Clear old data and replace with cleaned up data
-            simData.cEdges.Dispose();
-            simData.cEdges = new(tempEdges.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            simData.edgesReadOnly.Dispose();
+            simData.edgesReadOnly = new(tempEdges.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
-            simData.cRestDistance.Dispose();
-            simData.cRestDistance = new(tempEdges.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            simData.restDistancesReadOnly.Dispose();
+            simData.restDistancesReadOnly = new(tempEdges.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
-            for (int i = 0; i < simData.cEdges.Length; i++)
+            for (int i = 0; i < simData.edgesReadOnly.Length; i++)
             {
-                simData.cEdges[i] = tempEdges[i];
-                simData.cRestDistance[i] = tempEdgeLengths[i];
+                simData.edgesReadOnly[i] = tempEdges[i];
+                simData.restDistancesReadOnly[i] = tempEdgeLengths[i];
             }
 
             // And then bending edges
-            List<UCBendingEdge> tempBending = new(simData.cBendingEdges);
-            for (int i = 0; i < simData.cBendingEdges.Length; i++)
+            List<UCBendingEdge> tempBending = new(simData.bendingEdgesReadOnly);
+            for (int i = 0; i < simData.bendingEdgesReadOnly.Length; i++)
             {
-                var edge = simData.cBendingEdges[i];
+                var edge = simData.bendingEdgesReadOnly[i];
 
-                if (simData.cReciprocalWeight[edge.bendingNode1] > 0.0001f || simData.cReciprocalWeight[edge.bendingNode2] > 0.0001f)
+                if (simData.reciprocalWeight[edge.bendingNode1] > 0.0001f || simData.reciprocalWeight[edge.bendingNode2] > 0.0001f)
                 {
                     tempBending.Add(edge);
                 }
             }
-            simData.cBendingEdges.Dispose();
-            simData.cBendingEdges = new(tempBending.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            simData.bendingEdgesReadOnly.Dispose();
+            simData.bendingEdgesReadOnly = new(tempBending.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
-            for (int i = 0; i < simData.cBendingEdges.Length; i++)
+            for (int i = 0; i < simData.bendingEdgesReadOnly.Length; i++)
             {
-                simData.cBendingEdges[i] = tempBending[i];
+                simData.bendingEdgesReadOnly[i] = tempBending[i];
             }
         }
     }

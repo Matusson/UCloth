@@ -56,7 +56,7 @@ namespace UCloth
         /// </summary>
         internal void UpdateRenderedMesh()
         {
-            if (!_scheduler.simData.cPositions.IsCreated)
+            if (!_scheduler.simData.positionsReadOnly.IsCreated)
                 return;
 
             // Update positions
@@ -71,7 +71,7 @@ namespace UCloth
                 targetVertex = _renderToSimIndexLookup[targetVertex];
 
                 // Translate into local space
-                _data.vertices[i] = worldToLocal.MultiplyPoint(_scheduler.simData.cPositions[targetVertex]);
+                _data.vertices[i] = worldToLocal.MultiplyPoint(_scheduler.simData.positionsReadOnly[targetVertex]);
             }
 
             bool updateTrisUvs = ApplyPostprocessors();
