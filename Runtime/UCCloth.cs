@@ -534,7 +534,7 @@ namespace UCloth
                     }
                 }
             }
-            return;
+
             // There might be edges which are fully pinned. There's no point computing those, so we discard them
             List<UCEdge> tempEdges = new(simData.cEdges.Length);
             List<float> tempEdgeLengths = new(simData.cEdges.Length);
