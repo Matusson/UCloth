@@ -62,7 +62,8 @@ namespace UCloth
         private NativeList<ushort> pointQueryIndexCounts;
 
         private JobHandle? _job;
-        private TaskCompletionSource<bool> waitForJobExecute;
+        private TaskCompletionSource<bool> onBeforeStart;
+        private TaskCompletionSource<bool> onFinished;
 
         private int _lastSimFrequency;
         private float _timestep;
@@ -148,16 +149,17 @@ namespace UCloth
 
         public async Task<List<ushort>> QueryClosestPoints(UCPointQueryData query)
         {
+            // We can add the query straight away
             int queryIndex = pointQueries.Length;
             pointQueries.Add(query);
 
-            // Wait until current execution has finished
-            waitForJobExecute ??= new();
-            await waitForJobExecute.Task;
+            // Then we wait until a new task is scheduled, so that queries are copied into it
+            onBeforeStart ??= new();
+            await onBeforeStart.Task;
 
-
-            waitForJobExecute = new();
-            await waitForJobExecute.Task;
+            // And then wait for the job to finish
+            onFinished ??= new();
+            await onFinished.Task;
 
             // Results should be ready now
             // Get start index for this query
@@ -172,7 +174,7 @@ namespace UCloth
                 results.Add(pointQueryResults[i]);
             }
 
-            pointQueries.RemoveAt(queryIndex);
+            pointQueries.RemoveAt(0);
             return results;
         }
 
@@ -214,6 +216,9 @@ namespace UCloth
 
             _timestep = Time.timeScale * qualityProperties.timeScaleMultiplier / qualityProperties.simFrequency;
             _timestep = math.clamp(_timestep, 0f, qualityProperties.maxTimestep);
+
+            onBeforeStart?.SetResult(true);
+            onBeforeStart = null;
 
             // Copy data that might be written to by the Job
             simData.CopyWriteableData();
@@ -274,8 +279,8 @@ namespace UCloth
 
             _job.Value.Complete();
 
-            waitForJobExecute?.SetResult(true);
-            waitForJobExecute = null;
+            onFinished?.SetResult(true);
+            onFinished = null;
 
             UpdateAutooptimisation();
 
@@ -493,15 +498,16 @@ namespace UCloth
                 positions[i] = localToWorldMatrix.MultiplyPoint(data.positions[i]);
             }
 
-            simData = new();
-
-            // Transform data to NativeArrays
-            simData.cPositions = new NativeArray<float3>(positions, Allocator.Persistent);
-            simData.edgesReadOnly = new NativeArray<UCEdge>(data.edges.ToArray(), Allocator.Persistent);
-            simData.bendingEdgesReadOnly = new NativeArray<UCBendingEdge>(data.bendingEdges.ToArray(), Allocator.Persistent);
-            simData.neighboursReadOnly = data.neighbours;
-            simData.normalsReadOnly = new NativeArray<float3>(positions.Length, Allocator.Persistent);
-            simData.triangleNormalsReadOnly = new NativeArray<float3>(initialMeshData.triangles.Length, Allocator.Persistent);
+            simData = new()
+            {
+                // Transform data to NativeArrays
+                cPositions = new NativeArray<float3>(positions, Allocator.Persistent),
+                edgesReadOnly = new NativeArray<UCEdge>(data.edges.ToArray(), Allocator.Persistent),
+                bendingEdgesReadOnly = new NativeArray<UCBendingEdge>(data.bendingEdges.ToArray(), Allocator.Persistent),
+                neighboursReadOnly = data.neighbours,
+                normalsReadOnly = new NativeArray<float3>(positions.Length, Allocator.Persistent),
+                triangleNormalsReadOnly = new NativeArray<float3>(initialMeshData.triangles.Length, Allocator.Persistent)
+            };
 
             // The rest distance can be computed for every edge easily
             // This cannot be computed in the preprocessor! This is because if the mesh is scaled, it won't be reflected
