@@ -4,7 +4,7 @@ using Unity.Burst;
 using Unity.Jobs;
 using UnityEngine;
 using System.Runtime.CompilerServices;
-using System;
+using Unity.Profiling;
 
 namespace UCloth
 {
@@ -110,21 +110,46 @@ namespace UCloth
             _bendingEdgeCount = bendingEdges.Length;
             _computedRegions = false;
 
-            float timestep = baseTimestep / qualityProperties.iterations;
+            // Main integration
+            ProfilerMarker integrationMarker = new("Integration");
+            integrationMarker.Begin();
 
+            float timestep = baseTimestep / qualityProperties.iterations;
             for (int i = 0; i < qualityProperties.iterations; i++)
             {
                 Integrate(timestep);
             }
+            integrationMarker.End();
+
+            // Edge constaints
+            ProfilerMarker constraintsMarker = new("Constraints");
+            constraintsMarker.Begin();
 
             for (int i = 0; i < qualityProperties.constraintIterations; i++)
             {
                 ConstrainEdges();
             }
 
+            constraintsMarker.End();
+
+            // Collisions
+            ProfilerMarker collisionsMarker = new("Collisions");
+            collisionsMarker.Begin();
+
             ApplyCollisions();
+
+            collisionsMarker.End();
+
+            // Self-collisions
+            ProfilerMarker selfcolMarker = new("Self Collision");
+            selfcolMarker.Begin();
+
             ApplySelfCollisions();
 
+            selfcolMarker.End();
+
+
+            // Query points
             SatisfyPointQueries();
         }
 
@@ -146,7 +171,12 @@ namespace UCloth
                 tempAcceleration[i] = acc;
 
             }
+            ProfilerMarker forceUpdateMarker = new("Forces Update");
+            forceUpdateMarker.Begin();
+
             UpdateForces();
+
+            forceUpdateMarker.End();
 
             for (int i = 0; i < _nodeCount; i++)
             {
