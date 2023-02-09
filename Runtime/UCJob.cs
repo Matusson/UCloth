@@ -555,7 +555,7 @@ namespace UCloth
                 }
 
                 // Select the closest if none found
-                if(queryResults == 0)
+                if (queryResults == 0)
                 {
                     pointQueryResults.Add(closestIndex);
                     indexCount++;
@@ -611,6 +611,8 @@ namespace UCloth
 
         private NativeList<int3> ComputeSpatialPartitions()
         {
+            // NOTE: It should be possible to compute the partitions in a separate Job in parallel, 
+            // getting extra speed at cost of some accuracy. However it doesn't take that long, so it's not done currently
             utilizedRegionSet.Clear();
             NativeList<int3> utilizedRegionIndices = new(64, Allocator.Temp);
 

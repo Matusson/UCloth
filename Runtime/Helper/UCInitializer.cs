@@ -13,9 +13,9 @@
             {
                 stiffnessCoefficient = 2000,
                 dampingCoefficient = 10,
-                maxStretch = 1.01f,
+                maxStretch = 0.95f,
                 energyConservation = 1f,
-                bendingCoefficient = 1f,
+                bendingCoefficient = 0f,
                 vertexMass = 1f
             };
 
@@ -39,7 +39,7 @@
                 collisionFriction = 1f,
                 collisionContactOffset = 0.001f,
                 enableSelfCollision = false,
-                selfCollisionDistance = 0.3f,
+                selfCollisionDistance = 0.03f,
                 selfCollisionStiffness = 1f,
                 selfCollisionFriction = 0.9f,
                 selfCollisionVelocityConservation = 0.75f,
