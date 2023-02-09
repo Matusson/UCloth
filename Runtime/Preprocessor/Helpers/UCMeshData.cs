@@ -17,7 +17,7 @@ namespace UCloth
         public NativeArray<int> triangles;
         public NativeParallelMultiHashMap<ushort, ushort> neighbours;
 
-        public Dictionary<int, int> vertexMerges;
+        public NativeParallelHashMap<int, int> vertexMerges;
         public NativeArray<int> renderToSimLookup;
     }
 }

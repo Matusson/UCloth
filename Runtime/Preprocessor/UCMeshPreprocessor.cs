@@ -47,7 +47,7 @@ namespace UCloth
 
             // We still need a way to know which vertices have been merged in this process,
             // Otherwise we cannot assemble the mesh again. 
-            Dictionary<int, int> swaps = new();
+            NativeParallelHashMap<int, int> swaps = new(0, Allocator.Persistent);
             List<float3> positions = new(mesh.vertexCount);
 
             // As we only keep the simulation data in those arrays, accessing them for rendering is problematic (as duplicated indexes are skipped)

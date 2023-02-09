@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -18,7 +19,7 @@ namespace UCloth
 
         // The preprocessors will merge vertices with the same positions, otherwise weird issues happen with UV seams
         // This dictionary stores those merges so the mesh can still be reconstructed correctly.
-        private readonly Dictionary<int, int> _vertexSwaps;
+        private readonly NativeParallelHashMap<int, int> _vertexSwaps;
         private readonly NativeArray<int> _renderToSimIndexLookup;
 
         private UCRenderingMeshData _data;
@@ -60,19 +61,17 @@ namespace UCloth
                 return;
 
             // Update positions
-            var worldToLocal = _transform.worldToLocalMatrix;
-            for (int i = 0; i < _rawVertexCount; i++)
+            float4x4 worldToLocal = _transform.worldToLocalMatrix;
+            TransformVerticesToLocalJob transformJob = new()
             {
-                int targetVertex = i;
-
-                if (_vertexSwaps.ContainsKey(i))
-                    targetVertex = _vertexSwaps[i];
-
-                targetVertex = _renderToSimIndexLookup[targetVertex];
-
-                // Translate into local space
-                _data.vertices[i] = worldToLocal.MultiplyPoint(_scheduler.simData.positionsReadOnly[targetVertex]);
-            }
+                localSpaceVertices = _data.vertices,
+                worldSpaceVertices = _scheduler.simData.positionsReadOnly,
+                vertexSwaps = _vertexSwaps,
+                renderToSimIndexLookup = _renderToSimIndexLookup,
+                worldToLocal = worldToLocal
+            };
+            var handle = transformJob.Schedule(_rawVertexCount, 256);
+            handle.Complete();
 
             bool updateTrisUvs = ApplyPostprocessors();
             var mesh = _filter.mesh;

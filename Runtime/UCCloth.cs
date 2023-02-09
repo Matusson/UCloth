@@ -107,6 +107,8 @@ namespace UCloth
             StopTimer();
             _ucRenderer?.Dispose();
 
+            if (initialMeshData.vertexMerges.IsCreated)
+                initialMeshData.vertexMerges.Dispose();
 
             if (initialMeshData.triangles.IsCreated)
                 initialMeshData.triangles.Dispose();
