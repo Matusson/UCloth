@@ -25,15 +25,18 @@ namespace UCloth
             // However, going too low will cause missing collisions.
             // It should be safe going with about 1-2 nodes per cell, and 5-8 surrounding nodes.
 
-            var surroundRange = GetSurroundingRange(mode);
-            if (data.averageSurroundingNodes < surroundRange.Item1)
+            if (_scheduler.collisionProperties.selfCollisionAccuracy != 0)
             {
-                current *= 0.5f;
-            }
+                var surroundRange = GetSurroundingRange(mode);
+                if (data.averageSurroundingNodes < surroundRange.Item1)
+                {
+                    current *= 0.5f;
+                }
 
-            if (data.averageSurroundingNodes < surroundRange.Item2)
-            {
-                current *= 0.85f;
+                if (data.averageSurroundingNodes < surroundRange.Item2)
+                {
+                    current *= 0.85f;
+                }
             }
 
             var localRange = GetLocalRange(mode);
