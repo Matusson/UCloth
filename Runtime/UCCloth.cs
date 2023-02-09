@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 namespace UCloth
 {
@@ -148,6 +149,11 @@ namespace UCloth
 
         // ----- PUBLIC APIs
 
+        /// <summary>
+        /// Fetches list of at least 1 closest point to the specified position. Call asynchronously!
+        /// </summary>
+        /// <param name="query"></param>
+        /// <returns> List of point IDs, used as indices for simData. </returns>
         public async Task<List<ushort>> QueryClosestPoints(UCPointQueryData query)
         {
             // We can add the query straight away
@@ -197,10 +203,7 @@ namespace UCloth
         /// </summary>
         private void ScheduleStart()
         {
-            // Clear out previous normals
-            for (int i = 0; i < simData.normalsReadOnly.Length; i++)
-                simData.normalsReadOnly[i] = new float3();
-
+            // Update normals
             UCNormalComputeJob normalJob = new()
             {
                 vertices = simData.positionsReadOnly,
@@ -209,14 +212,18 @@ namespace UCloth
                 triangles = initialMeshData.triangles,
                 renderToSimLookup = initialMeshData.renderToSimLookup
             };
-            normalJob.Run();
-            _ucRenderer.UpdateRenderingNormals(simData.normalsReadOnly);
+            var normalRecompute = normalJob.Schedule();
 
             UpdateColliderDTOs();
             VerifyDataValidity();
 
             _timestep = Time.timeScale * qualityProperties.timeScaleMultiplier / qualityProperties.simFrequency;
             _timestep = math.clamp(_timestep, 0f, qualityProperties.maxTimestep);
+
+            // Finish up completion before start
+            // Technically possible to make normal recomputation a dependency, but updating normals in UCRenderer is tricky
+            normalRecompute.Complete();
+            _ucRenderer.UpdateRenderingNormals(simData.normalsReadOnly);
 
             onBeforeStart?.SetResult(true);
             onBeforeStart = null;

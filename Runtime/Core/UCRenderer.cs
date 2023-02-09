@@ -22,6 +22,9 @@ namespace UCloth
         private readonly NativeParallelHashMap<int, int> _vertexSwaps;
         private readonly NativeArray<int> _renderToSimIndexLookup;
 
+        private NativeArray<float3> _latestWorldSpaceNormals;
+
+        private JobHandle _normalTransformJob;
         private UCRenderingMeshData _data;
         private readonly int _rawVertexCount;
 
@@ -36,6 +39,8 @@ namespace UCloth
             _vertexSwaps = data.vertexMerges;
             _renderToSimIndexLookup = data.renderToSimLookup;
 
+            _latestWorldSpaceNormals = new(data.positions.Count, Allocator.Persistent);
+
             _data = new()
             {
                 vertices = new NativeArray<float3>(filter.mesh.vertices.Length, Allocator.Persistent),
@@ -49,6 +54,8 @@ namespace UCloth
         {
             _data.vertices.Dispose();
             _data.normals.Dispose();
+
+            _latestWorldSpaceNormals.Dispose();
         }
 
 
@@ -96,6 +103,8 @@ namespace UCloth
                 mesh.uv = _data.uvs;
             }
 
+            // If normal transformation is in progress, need to wait
+            _normalTransformJob.Complete();
 
             mesh.SetNormals(_data.normals);
             mesh.RecalculateBounds();
@@ -111,12 +120,22 @@ namespace UCloth
         /// <param name="newNormals"></param>
         internal void UpdateRenderingNormals(NativeArray<float3> newNormals)
         {
+            _normalTransformJob.Complete();
+
+            // Need to copy, otherwise normal recomputation will overwrite it
+            _latestWorldSpaceNormals.CopyFrom(newNormals);
+
             // Normals need to be in local space
-            for (int i = 0; i < _rawVertexCount; i++)
+            TransformNormalsToLocalJob normalJob = new()
             {
-                int targetIndex = _renderToSimIndexLookup[i];
-                _data.normals[i] = _transform.InverseTransformDirection(newNormals[targetIndex]);
-            }
+                normalsLocalSpace = _data.normals,
+                normalsWorldSpace = _latestWorldSpaceNormals,
+                renderToSimIndexLookup = _renderToSimIndexLookup,
+                worldToLocal = _transform.worldToLocalMatrix
+            };
+
+            // No need to block the main thread while this is computing
+            _normalTransformJob = normalJob.Schedule(_rawVertexCount, 1024);
         }
 
         /// <summary>

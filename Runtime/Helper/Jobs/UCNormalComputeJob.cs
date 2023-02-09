@@ -27,6 +27,10 @@ namespace UCloth
 
         public void Execute()
         {
+            // Clear out previous normals
+            for (int i = 0; i < normals.Length; i++)
+                normals[i] = new float3();
+
             // Vertex normal calculation is done by computing a triangle normal, then adding it to every vertex that makes it up
             int trisCount = triangles.Length / 3;
             for (int i = 0; i < trisCount; i++)
@@ -36,7 +40,7 @@ namespace UCloth
                 int vert2 = renderToSimLookup[triangles[triangleIndex + 1]];
                 int vert3 = renderToSimLookup[triangles[triangleIndex + 2]];
 
-                // TODO: Since we're computing face normals anyway, see if using those for bending stiffness would create better results
+                // Since we're computing face normals anyway, they can be used for computing bending stiffness (better than vertex normals)
                 float3 triangleNormal = CalculateTriangleNormal(vert1, vert2, vert3);
                 triangleNormals[i] = triangleNormal;
 
