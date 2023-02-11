@@ -19,20 +19,13 @@ namespace UCloth
 
 
         [ReadOnly]
-        public NativeParallelHashMap<int, int> vertexSwaps;
-        [ReadOnly]
         public NativeArray<int> renderToSimIndexLookup;
 
         public float4x4 worldToLocal;
 
         public void Execute(int index)
         {
-            int targetVertex = index;
-
-            if (vertexSwaps.ContainsKey(index))
-                targetVertex = vertexSwaps[index];
-
-            targetVertex = renderToSimIndexLookup[targetVertex];
+            int targetVertex = renderToSimIndexLookup[index];
 
             // Translate into local space
             localSpaceVertices[index] = math.transform(worldToLocal, worldSpaceVertices[targetVertex]);

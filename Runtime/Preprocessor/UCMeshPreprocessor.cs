@@ -46,13 +46,10 @@ namespace UCloth
             _hashedVertices = new(mesh.vertexCount);
 
             // We still need a way to know which vertices have been merged in this process,
-            // Otherwise we cannot assemble the mesh again. 
-            NativeParallelHashMap<int, int> swaps = new(0, Allocator.Persistent);
+            // Otherwise we cannot assemble the mesh again. We use an array to eliminate branching when doing lookups
+            NativeArray<int> renderToSimLookup = new(mesh.vertexCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
             List<float3> positions = new(mesh.vertexCount);
 
-            // As we only keep the simulation data in those arrays, accessing them for rendering is problematic (as duplicated indexes are skipped)
-            // So we store a lookup for which rendering vertex is which sim index.
-            NativeArray<int> renderToSimLookup = new(mesh.vertexCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
             ushort uniqueVertId = 0;
 
             for (int i = 0; i < mesh.vertexCount; i++)
@@ -62,7 +59,6 @@ namespace UCloth
                 if (_hashedVertices.ContainsKey(position))
                 {
                     int trueVertex = _hashedVertices[position];
-                    swaps[i] = trueVertex;
                     renderToSimLookup[i] = trueVertex;
                 }
                 else
@@ -221,8 +217,6 @@ namespace UCloth
 
                 triangles = new NativeArray<int>(mesh.triangles, Allocator.Persistent),
                 neighbours = _neighbours,
-
-                vertexMerges = swaps,
                 renderToSimLookup = renderToSimLookup
             };
             return true;

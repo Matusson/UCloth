@@ -18,8 +18,7 @@ namespace UCloth
         private readonly MeshCollider _collider;
 
         // The preprocessors will merge vertices with the same positions, otherwise weird issues happen with UV seams
-        // This dictionary stores those merges so the mesh can still be reconstructed correctly.
-        private readonly NativeParallelHashMap<int, int> _vertexSwaps;
+        // This lookup array stores those merges so the mesh can still be reconstructed correctly.
         private readonly NativeArray<int> _renderToSimIndexLookup;
 
         private NativeArray<float3> _latestWorldSpaceNormals;
@@ -36,7 +35,6 @@ namespace UCloth
             _collider = collider;
 
             _rawVertexCount = _filter.mesh.vertexCount;
-            _vertexSwaps = data.vertexMerges;
             _renderToSimIndexLookup = data.renderToSimLookup;
 
             _latestWorldSpaceNormals = new(data.positions.Count, Allocator.Persistent);
@@ -75,7 +73,6 @@ namespace UCloth
             {
                 localSpaceVertices = _data.vertices,
                 worldSpaceVertices = _scheduler.simData.positionsReadOnly,
-                vertexSwaps = _vertexSwaps,
                 renderToSimIndexLookup = _renderToSimIndexLookup,
                 worldToLocal = worldToLocal
             };
