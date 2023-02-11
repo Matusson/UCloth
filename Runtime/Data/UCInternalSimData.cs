@@ -107,7 +107,9 @@ namespace UCloth
             triangleNormalsReadOnly.Dispose();
             restDistancesReadOnly.Dispose();
             reciprocalWeight.Dispose();
+            cReciprocalWeight.Dispose();
             pinnedLocalPositions.Dispose();
+            cPinnedLocalPositions.Dispose();
 
             if (cSelfCollisionRegions.IsCreated())
                 cSelfCollisionRegions.Dispose();

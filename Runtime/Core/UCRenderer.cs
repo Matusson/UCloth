@@ -52,6 +52,8 @@ namespace UCloth
 
         public void Dispose()
         {
+            _normalTransformJob.Complete();
+
             _data.vertices.Dispose();
             _data.normals.Dispose();
 

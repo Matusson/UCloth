@@ -58,6 +58,7 @@ namespace UCloth
 
         // For point queries
         private NativeList<UCPointQueryData> pointQueries;
+        private NativeList<UCPointQueryData> queryCopy;
         private NativeList<ushort> pointQueryResults;
         private NativeList<ushort> pointQueryIndexCounts;
 
@@ -102,6 +103,9 @@ namespace UCloth
             if (sphereColDTOs.IsCreated)
                 sphereColDTOs.Dispose();
 
+            if (capsuleColDTOs.IsCreated)
+                capsuleColDTOs.Dispose();
+
             if (cubeColDTOs.IsCreated)
                 cubeColDTOs.Dispose();
 
@@ -123,6 +127,9 @@ namespace UCloth
             pointQueries.Dispose();
             pointQueryResults.Dispose();
             pointQueryIndexCounts.Dispose();
+
+            if (queryCopy.IsCreated)
+                queryCopy.Dispose();
 
             for (int i = 0; i < postprocessors?.Count; i++)
             {
@@ -195,8 +202,6 @@ namespace UCloth
             ScheduleFinish();
             ScheduleStart();
         }
-
-        private NativeList<UCPointQueryData> queryCopy;
 
         /// <summary>
         /// Schedules a simulation to take place in the background.
