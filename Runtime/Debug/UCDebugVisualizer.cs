@@ -1,3 +1,4 @@
+#if UNITY_EDITOR    // Can't place into another assembly as we refer to some internal components
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEditor;
@@ -238,3 +239,4 @@ namespace UCloth
         }
     }
 }
+#endif

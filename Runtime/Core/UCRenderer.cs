@@ -80,6 +80,9 @@ namespace UCloth
             var handle = transformJob.Schedule(_rawVertexCount, 256);
             handle.Complete();
 
+            // If normal transformation is in progress, need to wait as well (due to thickness using normals)
+            _normalTransformJob.Complete();
+
             bool updateTrisUvs = ApplyPostprocessors();
             var mesh = _filter.mesh;
 
@@ -102,9 +105,6 @@ namespace UCloth
 
                 mesh.uv = _data.uvs;
             }
-
-            // If normal transformation is in progress, need to wait
-            _normalTransformJob.Complete();
 
             mesh.SetNormals(_data.normals);
             mesh.RecalculateBounds();
