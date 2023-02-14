@@ -20,7 +20,7 @@ namespace UCloth
         public UCPreprocessorType preprocessorType;
 
         [Tooltip("These colliders will be used at startup to determine if a vertex is pinned or not.")]
-        public List<BoxCollider> pinColliders;
+        public List<Collider> pinColliders;
 
         [Space]
         [Header("Settings")]
@@ -52,6 +52,7 @@ namespace UCloth
 
         private UCRenderer _ucRenderer;
         private UCAutoOptimizer _ucOptimizer;
+        private UCPinner _pinner;
         private MeshRenderer _meshRenderer;
         internal UCMeshData initialMeshData;
         internal NativeReference<UCAutoOptimizeData> optimizationData;
@@ -72,6 +73,8 @@ namespace UCloth
 
         private void Start()
         {
+            _pinner = new(this);
+
             bool success = SetUpData(out var meshData);
 
             if (!success)
@@ -145,6 +148,7 @@ namespace UCloth
             if (simData == null)
                 return;
 
+            _pinner.UpdateMoved();
             UpdateInternalPostprocessor();
 
             _ucRenderer.UpdateRenderedMesh();
@@ -544,85 +548,10 @@ namespace UCloth
             pointQueryResults = new(Allocator.Persistent);
             pointQueryIndexCounts = new(Allocator.Persistent);
 
-            SetUpDataPinned();
+            _pinner.SetUpDataPinned();
             simData.PrepareCopies();
             simData.CopyWriteableData();
             return true;
-        }
-
-        /// <summary>
-        /// Checks if points are within the pin colliders, and marks them accordingly.
-        /// </summary>
-        private void SetUpDataPinned()
-        {
-            simData.reciprocalWeight = new NativeArray<float>(simData.cPositions.Length, Allocator.Persistent);
-            simData.pinnedLocalPositions = new NativeParallelHashMap<ushort, float3>(64, Allocator.Persistent);
-
-            ushort pinnedIndex = 0;
-            for (ushort i = 0; i < simData.reciprocalWeight.Length; i++)
-            {
-                // Set initial weight
-                simData.reciprocalWeight[i] = 1f;
-
-                float3 position = simData.cPositions[i];
-                foreach (var collider in pinColliders)
-                {
-                    if (collider.bounds.Contains(position))
-                    {
-                        simData.reciprocalWeight[i] = 0f;
-                        simData.pinnedLocalPositions.Add(i, transform.InverseTransformPoint(position));
-                        pinnedIndex++;
-                        break;
-                    }
-                }
-            }
-
-            // There might be edges which are fully pinned. There's no point computing those, so we discard them
-            List<UCEdge> tempEdges = new(simData.edgesReadOnly.Length);
-            List<float> tempEdgeLengths = new(simData.edgesReadOnly.Length);
-
-            for (int i = 0; i < simData.edgesReadOnly.Length; i++)
-            {
-                var edge = simData.edgesReadOnly[i];
-
-                if (simData.reciprocalWeight[edge.nodeIndex1] > 0.0001f || simData.reciprocalWeight[edge.nodeIndex2] > 0.0001f)
-                {
-                    tempEdges.Add(edge);
-                    tempEdgeLengths.Add(simData.restDistancesReadOnly[i]);
-                }
-            }
-
-            // Clear old data and replace with cleaned up data
-            simData.edgesReadOnly.Dispose();
-            simData.edgesReadOnly = new(tempEdges.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-
-            simData.restDistancesReadOnly.Dispose();
-            simData.restDistancesReadOnly = new(tempEdges.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-
-            for (int i = 0; i < simData.edgesReadOnly.Length; i++)
-            {
-                simData.edgesReadOnly[i] = tempEdges[i];
-                simData.restDistancesReadOnly[i] = tempEdgeLengths[i];
-            }
-
-            // And then bending edges
-            List<UCBendingEdge> tempBending = new(simData.bendingEdgesReadOnly);
-            for (int i = 0; i < simData.bendingEdgesReadOnly.Length; i++)
-            {
-                var edge = simData.bendingEdgesReadOnly[i];
-
-                if (simData.reciprocalWeight[edge.bendingNode1] > 0.0001f || simData.reciprocalWeight[edge.bendingNode2] > 0.0001f)
-                {
-                    tempBending.Add(edge);
-                }
-            }
-            simData.bendingEdgesReadOnly.Dispose();
-            simData.bendingEdgesReadOnly = new(tempBending.Count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-
-            for (int i = 0; i < simData.bendingEdgesReadOnly.Length; i++)
-            {
-                simData.bendingEdgesReadOnly[i] = tempBending[i];
-            }
         }
     }
 }
