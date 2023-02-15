@@ -257,7 +257,7 @@ namespace UCloth
                 normalsTriangles = simData.triangleNormalsReadOnly,
                 restDistances = simData.restDistancesReadOnly,
                 reciprocalWeight = simData.cReciprocalWeight,
-                pinnedLocalPos = simData.cPinnedLocalPositions,
+                pinnedPos = simData.cPinnedPositions,
 
                 material = materialProperties,
                 collisionSettings = collisionProperties,
@@ -276,7 +276,6 @@ namespace UCloth
                 pointQueryIndexCounts = pointQueryIndexCounts,
 
                 bounds = _meshRenderer.bounds,
-                localToWorldMatrix = transform.localToWorldMatrix,
                 optimizationData = optimizationData
             };
 

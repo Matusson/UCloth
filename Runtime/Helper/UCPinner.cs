@@ -15,11 +15,11 @@ namespace UCloth
     /// </summary>
     internal class UCPinner
     {
-        private UCCloth _scheduler;
+        private readonly UCCloth _scheduler;
         private UCInternalSimData _simData;
 
         private List<Collider> _colliders;
-        private Dictionary<Collider, UCPinData> _pinData;
+        private readonly Dictionary<Collider, UCPinData> _pinData;
 
         internal UCPinner(UCCloth scheduler)
         {
@@ -29,8 +29,6 @@ namespace UCloth
 
         internal void UpdateMoved()
         {
-            float4x4 schedulerMatrix = _scheduler.transform.worldToLocalMatrix;
-
             foreach(var collider in _colliders)
             {
                 var pinData = _pinData[collider];
@@ -48,11 +46,9 @@ namespace UCloth
                     ushort nodeId = pinData.pinnedNodeIds[i];
                     float3 relative = pinData.relativePositions[i];
 
-                    // Into world space, then into local space of scheduler
-                    float3 world = math.transform(currentMatrix, relative);
-                    float3 schedulerSpace = math.transform(schedulerMatrix, world);
-
-                    _simData.pinnedLocalPositions[nodeId] = schedulerSpace;
+                    // Target space is world space
+                    float3 worldSpace = math.transform(currentMatrix, relative);
+                    _simData.pinnedPositions[nodeId] = worldSpace;
                 }
             }
         }
@@ -65,7 +61,7 @@ namespace UCloth
             _simData = _scheduler.simData;
 
             _simData.reciprocalWeight = new NativeArray<float>(_simData.cPositions.Length, Allocator.Persistent);
-            _simData.pinnedLocalPositions = new NativeParallelHashMap<ushort, float3>(64, Allocator.Persistent);
+            _simData.pinnedPositions = new NativeParallelHashMap<ushort, float3>(64, Allocator.Persistent);
 
             // Sort the pin colliders from smallest to biggest, so small colliders override big ones
             _colliders = _scheduler.pinColliders.OrderBy(x => x.bounds.size.magnitude).ToList();
@@ -92,7 +88,7 @@ namespace UCloth
                     {
                         // Simulation data
                         _simData.reciprocalWeight[i] = 0f;
-                        _simData.pinnedLocalPositions.Add(i, _scheduler.transform.InverseTransformPoint(position)); //TODO: Is local pos still necessary here?
+                        _simData.pinnedPositions.Add(i, position);
 
                         // Pin data
                         _pinData[collider].pinnedNodeIds.Add(i);

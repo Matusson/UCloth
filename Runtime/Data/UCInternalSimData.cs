@@ -41,8 +41,8 @@ namespace UCloth
         public NativeArray<float> reciprocalWeight;
         internal NativeArray<float> cReciprocalWeight;
 
-        public NativeParallelHashMap<ushort, float3> pinnedLocalPositions;
-        internal NativeParallelHashMap<ushort, float3> cPinnedLocalPositions;
+        public NativeParallelHashMap<ushort, float3> pinnedPositions;
+        internal NativeParallelHashMap<ushort, float3> cPinnedPositions;
 
 
 
@@ -58,8 +58,8 @@ namespace UCloth
             if (!cReciprocalWeight.IsCreated)
                 cReciprocalWeight = new NativeArray<float>(reciprocalWeight, Allocator.Persistent);
 
-            if (!cPinnedLocalPositions.IsCreated)
-                cPinnedLocalPositions = new NativeParallelHashMap<ushort, float3>(pinnedLocalPositions.Capacity, Allocator.Persistent);
+            if (!cPinnedPositions.IsCreated)
+                cPinnedPositions = new NativeParallelHashMap<ushort, float3>(pinnedPositions.Capacity, Allocator.Persistent);
         }
 
         internal void CopyWriteableData()
@@ -71,10 +71,10 @@ namespace UCloth
             cReciprocalWeight.CopyFrom(reciprocalWeight);
 
             // TODO: This gets triggered every time and is unnecessary, fix if possible
-            if (cPinnedLocalPositions.GetHashCode() != pinnedLocalPositions.GetHashCode())
+            if (cPinnedPositions.GetHashCode() != pinnedPositions.GetHashCode())
             {
-                cPinnedLocalPositions.Clear();
-                var keyValues = pinnedLocalPositions.GetKeyValueArrays(Allocator.Temp);
+                cPinnedPositions.Clear();
+                var keyValues = pinnedPositions.GetKeyValueArrays(Allocator.Temp);
 
                 int length = keyValues.Keys.Length;
                 for (int i = 0; i < length; i++)
@@ -82,7 +82,7 @@ namespace UCloth
                     ushort key = keyValues.Keys[i];
                     float3 value = keyValues.Values[i];
 
-                    cPinnedLocalPositions.Add(key, value);
+                    cPinnedPositions.Add(key, value);
                 }
 
                 keyValues.Dispose();
@@ -108,8 +108,8 @@ namespace UCloth
             restDistancesReadOnly.Dispose();
             reciprocalWeight.Dispose();
             cReciprocalWeight.Dispose();
-            pinnedLocalPositions.Dispose();
-            cPinnedLocalPositions.Dispose();
+            pinnedPositions.Dispose();
+            cPinnedPositions.Dispose();
 
             if (cSelfCollisionRegions.IsCreated())
                 cSelfCollisionRegions.Dispose();

@@ -48,10 +48,10 @@ namespace UCloth
         [ReadOnly]
         public NativeArray<float> reciprocalWeight;
 
-        // Local-space positions of pinned nodes for correction
+        // World-space positions of pinned nodes for correction
         // Pinned nodes have weight of 0
         [ReadOnly]
-        public NativeParallelHashMap<ushort, float3> pinnedLocalPos;
+        public NativeParallelHashMap<ushort, float3> pinnedPos;
 
         // Colliders
         [ReadOnly]
@@ -72,7 +72,6 @@ namespace UCloth
         public NativeList<ushort> pointQueryIndexCounts;
 
         public Bounds bounds;
-        public float4x4 localToWorldMatrix;
 
         public UCMaterial material;
         public UCCollisionSettings collisionSettings;
@@ -656,7 +655,7 @@ namespace UCloth
                 {
                     acceleration[i] = new();
                     velocity[i] = new();
-                    positions[i] = math.transform(localToWorldMatrix, pinnedLocalPos[i]);
+                    positions[i] = pinnedPos[i];
                 }
             }
         }
