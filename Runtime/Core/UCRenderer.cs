@@ -27,9 +27,11 @@ namespace UCloth
 
         private JobHandle _positionTransformJob;
         private JobHandle _normalTransformJob;
+
         private UCRenderingMeshData _data;
         private readonly int _rawVertexCount;
-        private bool canReuseData;
+        private float4x4 _lastTransformation;
+        private bool _canReuseData;
 
         private const int BATCH_SIZE = 512;
 
@@ -77,6 +79,10 @@ namespace UCloth
             if (!_scheduler.simData.positionsReadOnly.IsCreated)
                 return;
 
+            // It might not be necessary to update the simulation
+            if (CanReuseMeshData())
+                return;
+
             Profiler.BeginSample("UCRendererUpdate");
 
             // If transformations are still running, they need to complete
@@ -109,6 +115,10 @@ namespace UCloth
             mesh.SetNormals(_data.normals);
             mesh.RecalculateBounds();
 
+            // Setup for reusing data later
+            _canReuseData = true;
+            _lastTransformation = _transform.worldToLocalMatrix;
+
             // Update the collider if attached
             if (_collider != null)
                 _collider.sharedMesh = mesh;
@@ -122,6 +132,7 @@ namespace UCloth
         internal void UpdateRenderingPositions(NativeArray<float3> newPositions)
         {
             _positionTransformJob.Complete();
+            _canReuseData = false;
 
             // Need to copy, otherwise simulation will override it
             _latestWorldSpacePositions.CopyFrom(newPositions);
@@ -134,6 +145,7 @@ namespace UCloth
         internal void UpdateRenderingNormals(NativeArray<float3> newNormals)
         {
             _normalTransformJob.Complete();
+            _canReuseData = false;
 
             // Need to copy, otherwise normal recomputation will overwrite it
             _latestWorldSpaceNormals.CopyFrom(newNormals);
@@ -153,7 +165,7 @@ namespace UCloth
             TransformVerticesToLocalJob transformJob = new()
             {
                 localSpaceVertices = _data.vertices,
-                worldSpaceVertices = _scheduler.simData.positionsReadOnly,
+                worldSpaceVertices = _latestWorldSpacePositions,
                 renderToSimIndexLookup = _renderToSimIndexLookup,
                 worldToLocal = worldToLocal
             };
@@ -238,6 +250,23 @@ namespace UCloth
                 return true;
 
             return false;
+        }
+
+
+        /// <summary>
+        /// Returns if mesh data can be reused.
+        /// </summary>
+        /// <returns></returns>
+        private bool CanReuseMeshData()
+        {
+            // No need for later checks if fresh data was used
+            if (!_canReuseData)
+                return false;
+
+            bool transformModified = !_lastTransformation.Equals((float4x4)_transform.worldToLocalMatrix);
+
+            // Should update if moved, otherwise jitter can be seen
+            return !transformModified;
         }
     }
 }
