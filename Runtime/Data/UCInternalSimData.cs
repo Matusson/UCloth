@@ -1,6 +1,8 @@
 ﻿using System;
 using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine.Profiling;
 
 namespace UCloth
 {
@@ -70,23 +72,11 @@ namespace UCloth
 
             cReciprocalWeight.CopyFrom(reciprocalWeight);
 
-            // TODO: This gets triggered every time and is unnecessary, fix if possible
-            if (cPinnedPositions.GetHashCode() != pinnedPositions.GetHashCode())
-            {
-                cPinnedPositions.Clear();
-                var keyValues = pinnedPositions.GetKeyValueArrays(Allocator.Temp);
+            cPinnedPositions.Clear();
+            NativeParallelHashMapCopyJob<ushort, float3> copyJob = new(pinnedPositions, cPinnedPositions);
 
-                int length = keyValues.Keys.Length;
-                for (int i = 0; i < length; i++)
-                {
-                    ushort key = keyValues.Keys[i];
-                    float3 value = keyValues.Values[i];
-
-                    cPinnedPositions.Add(key, value);
-                }
-
-                keyValues.Dispose();
-            }
+            var copyHandle = copyJob.Schedule(pinnedPositions.Capacity, 256);
+            copyHandle.Complete();
         }
 
         public void Dispose()

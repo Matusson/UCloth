@@ -83,8 +83,6 @@ namespace UCloth
             if (CanReuseMeshData())
                 return;
 
-            Profiler.BeginSample("UCRendererUpdate");
-
             // If transformations are still running, they need to complete
             _positionTransformJob.Complete();
             _normalTransformJob.Complete();
@@ -122,7 +120,6 @@ namespace UCloth
             // Update the collider if attached
             if (_collider != null)
                 _collider.sharedMesh = mesh;
-            Profiler.EndSample();
         }
 
         /// <summary>
