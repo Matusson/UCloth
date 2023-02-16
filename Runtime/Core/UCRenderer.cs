@@ -4,6 +4,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 namespace UCloth
 {
@@ -21,11 +22,16 @@ namespace UCloth
         // This lookup array stores those merges so the mesh can still be reconstructed correctly.
         private readonly NativeArray<int> _renderToSimIndexLookup;
 
+        private NativeArray<float3> _latestWorldSpacePositions;
         private NativeArray<float3> _latestWorldSpaceNormals;
 
+        private JobHandle _positionTransformJob;
         private JobHandle _normalTransformJob;
         private UCRenderingMeshData _data;
         private readonly int _rawVertexCount;
+        private bool canReuseData;
+
+        private const int BATCH_SIZE = 512;
 
         internal UCRenderer(UCCloth scheduler, UCMeshData data, MeshFilter filter, MeshCollider collider)
         {
@@ -37,7 +43,9 @@ namespace UCloth
             _rawVertexCount = _filter.mesh.vertexCount;
             _renderToSimIndexLookup = data.renderToSimLookup;
 
+            _latestWorldSpacePositions = new(data.positions.Count, Allocator.Persistent);
             _latestWorldSpaceNormals = new(data.positions.Count, Allocator.Persistent);
+
 
             _data = new()
             {
@@ -50,11 +58,13 @@ namespace UCloth
 
         public void Dispose()
         {
+            _positionTransformJob.Complete();
             _normalTransformJob.Complete();
 
             _data.vertices.Dispose();
             _data.normals.Dispose();
 
+            _latestWorldSpacePositions.Dispose();
             _latestWorldSpaceNormals.Dispose();
         }
 
@@ -67,19 +77,10 @@ namespace UCloth
             if (!_scheduler.simData.positionsReadOnly.IsCreated)
                 return;
 
-            // Update positions
-            float4x4 worldToLocal = _transform.worldToLocalMatrix;
-            TransformVerticesToLocalJob transformJob = new()
-            {
-                localSpaceVertices = _data.vertices,
-                worldSpaceVertices = _scheduler.simData.positionsReadOnly,
-                renderToSimIndexLookup = _renderToSimIndexLookup,
-                worldToLocal = worldToLocal
-            };
-            var handle = transformJob.Schedule(_rawVertexCount, 256);
-            handle.Complete();
+            Profiler.BeginSample("UCRendererUpdate");
 
-            // If normal transformation is in progress, need to wait as well (due to thickness using normals)
+            // If transformations are still running, they need to complete
+            _positionTransformJob.Complete();
             _normalTransformJob.Complete();
 
             bool updateTrisUvs = ApplyPostprocessors();
@@ -111,6 +112,19 @@ namespace UCloth
             // Update the collider if attached
             if (_collider != null)
                 _collider.sharedMesh = mesh;
+            Profiler.EndSample();
+        }
+
+        /// <summary>
+        /// Updates mesh positions for rendering.
+        /// </summary>
+        /// <param name="newPositions"></param>
+        internal void UpdateRenderingPositions(NativeArray<float3> newPositions)
+        {
+            _positionTransformJob.Complete();
+
+            // Need to copy, otherwise simulation will override it
+            _latestWorldSpacePositions.CopyFrom(newPositions);
         }
 
         /// <summary>
@@ -123,18 +137,40 @@ namespace UCloth
 
             // Need to copy, otherwise normal recomputation will overwrite it
             _latestWorldSpaceNormals.CopyFrom(newNormals);
+        }
 
-            // Normals need to be in local space
+
+        /// <summary>
+        /// Schedules transformation jobs.
+        /// </summary>
+        internal void ScheduleTransformations()
+        {
+            _positionTransformJob.Complete();
+            _normalTransformJob.Complete();
+
+            // Transform vertices into local space
+            float4x4 worldToLocal = _transform.worldToLocalMatrix;
+            TransformVerticesToLocalJob transformJob = new()
+            {
+                localSpaceVertices = _data.vertices,
+                worldSpaceVertices = _scheduler.simData.positionsReadOnly,
+                renderToSimIndexLookup = _renderToSimIndexLookup,
+                worldToLocal = worldToLocal
+            };
+
+            // No need to block the main thread while these are computing
+            _positionTransformJob = transformJob.Schedule(_rawVertexCount, BATCH_SIZE);
+
+            // And normals as well
             TransformNormalsToLocalJob normalJob = new()
             {
                 normalsLocalSpace = _data.normals,
                 normalsWorldSpace = _latestWorldSpaceNormals,
                 renderToSimIndexLookup = _renderToSimIndexLookup,
-                worldToLocal = _transform.worldToLocalMatrix
+                worldToLocal = worldToLocal
             };
 
-            // No need to block the main thread while this is computing
-            _normalTransformJob = normalJob.Schedule(_rawVertexCount, 1024);
+            _normalTransformJob = normalJob.Schedule(_rawVertexCount, BATCH_SIZE);
         }
 
         /// <summary>

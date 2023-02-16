@@ -148,11 +148,22 @@ namespace UCloth
             if (simData == null)
                 return;
 
+            // If possible, we start this work early, however this can increase latency
+            if (!qualityProperties.minimizeLatency)
+                _ucRenderer.ScheduleTransformations();
+
             _pinner.UpdateMoved();
             UpdateInternalPostprocessor();
 
-            _ucRenderer.UpdateRenderedMesh();
             UpdateTimer();
+        }
+
+        private void LateUpdate()
+        {
+            if (qualityProperties.minimizeLatency)
+                _ucRenderer.ScheduleTransformations();
+
+            _ucRenderer.UpdateRenderedMesh();
         }
 
         // ----- PUBLIC APIs
@@ -192,6 +203,8 @@ namespace UCloth
             pointQueries.RemoveAt(0);
             return results;
         }
+
+
 
         // ----- SCHEDULING CODE
 
@@ -295,6 +308,7 @@ namespace UCloth
             onFinished?.SetResult(true);
             onFinished = null;
 
+            _ucRenderer.UpdateRenderingPositions(simData.cPositions);
             UpdateAutooptimisation();
 
             // Dispose of colliders since they're updated every frame

@@ -16,5 +16,9 @@ namespace UCloth
         [Space]
         public int iterations;
         public int constraintIterations;
+
+        [Space]
+        [Tooltip("When enabled, the simulator will always use the most up-to-data data, at the cost of main thread performance.")]
+        public bool minimizeLatency;
     }
 }

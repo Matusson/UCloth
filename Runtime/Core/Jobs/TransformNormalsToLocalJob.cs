@@ -1,4 +1,5 @@
-﻿using Unity.Collections;
+﻿using Unity.Burst;
+using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 
@@ -7,6 +8,7 @@ namespace UCloth
     /// <summary>
     /// Transforms normals from world-space simulation to local-space for rendering.
     /// </summary>
+    [BurstCompile]
     internal struct TransformNormalsToLocalJob : IJobParallelFor
     {
         [WriteOnly]
