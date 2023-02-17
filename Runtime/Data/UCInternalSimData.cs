@@ -2,6 +2,7 @@
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine;
 using UnityEngine.Profiling;
 
 namespace UCloth
@@ -11,42 +12,82 @@ namespace UCloth
     /// </summary>
     public class UCInternalSimData : IDisposable
     {
-        // Data the sim writes to needs to be copied
-        internal NativeArray<float3> cPositions;
+        // --- Integration Data
+
+        /// <summary>
+        /// Read-only access to node positions.
+        /// </summary>
         public NativeArray<float3> positionsReadOnly;
+        internal NativeArray<float3> cPositions;
 
-        internal NativeArray<float3> cVelocity;
+        /// <summary>
+        /// Read-only access to node velocities.
+        /// </summary>
         public NativeArray<float3> velocityReadOnly;
-
+        internal NativeArray<float3> cVelocity;
 
         internal NativeArray<float3> cAcceleration;
         internal NativeArray<float3> cTempAcceleration;
 
-        internal Native3DHashmapArray<ushort> cSelfCollisionRegions;
-        internal NativeParallelHashSet<int3> cUtilizedSelfColRegions;
+
+        // --- Mesh Data
 
         // For those fields, it's not common to write them from outside, so they can be kept as read-only
         // These map directly to memory used in the sim
-        public NativeArray<UCEdge> edgesReadOnly;
-        public NativeArray<UCBendingEdge> bendingEdgesReadOnly;
-        public NativeArray<float> restDistancesReadOnly;
-
-        public NativeParallelMultiHashMap<ushort, ushort> neighboursReadOnly;
-
-        public NativeArray<float3> normalsReadOnly;
-        public NativeArray<float3> triangleNormalsReadOnly;
 
         /// <summary>
-        /// The reciprocal of the weight. This is preferred to storing weight directly as it allows 0 to be used for pinned nodes,
-        /// and replaces division with multiplication (which tends to be faster)
+        /// Read-only access to edges (node connections).
+        /// </summary>
+        public NativeArray<UCEdge> edgesReadOnly;
+
+        /// <summary>
+        /// Read-only access to node connections at which bending forces are applied.
+        /// </summary>
+        public NativeArray<UCBendingEdge> bendingEdgesReadOnly;
+
+        /// <summary>
+        /// Read-only access to resting edge lengths.
+        /// </summary>
+        public NativeArray<float> restDistancesReadOnly;
+
+        /// <summary>
+        /// Read-only access to node neighbours.
+        /// </summary>
+        public NativeParallelMultiHashMap<ushort, ushort> neighboursReadOnly;
+
+
+        // --- Helper Data
+
+        /// <summary>
+        /// Read-only access to node normals.
+        /// </summary>
+        public NativeArray<float3> normalsReadOnly;
+
+        /// <summary>
+        /// Read-only access to triangle normals.
+        /// </summary>
+        public NativeArray<float3> triangleNormalsReadOnly;
+
+
+        /// <summary>
+        /// The reciprocal of the weight. 0 for pinned nodes. Writeable.
         /// </summary>
         public NativeArray<float> reciprocalWeight;
         internal NativeArray<float> cReciprocalWeight;
 
+        // --- Pins
+        /// <summary>
+        /// World-space position specified only for pinned nodes. Writeable.
+        /// </summary>
         public NativeParallelHashMap<ushort, float3> pinnedPositions;
         internal NativeParallelHashMap<ushort, float3> cPinnedPositions;
 
+        // --- Spatial Partitioning
+        internal Native3DHashmapArray<ushort> cSelfCollisionRegions;
+        internal NativeParallelHashSet<int3> cUtilizedSelfColRegions;
 
+
+        private bool _applyPending = true;
 
         internal void PrepareCopies()
         {
@@ -70,13 +111,29 @@ namespace UCloth
             positionsReadOnly.CopyFrom(cPositions);
             velocityReadOnly.CopyFrom(cVelocity);
 
-            cReciprocalWeight.CopyFrom(reciprocalWeight);
+            // No need to do this every frame, only do this if modified
+            if (_applyPending)
+            {
+                // Pinned positions
+                cPinnedPositions.Clear();
+                NativeParallelHashMapCopyJob<ushort, float3> copyJob = new(pinnedPositions, cPinnedPositions);
 
-            cPinnedPositions.Clear();
-            NativeParallelHashMapCopyJob<ushort, float3> copyJob = new(pinnedPositions, cPinnedPositions);
+                var copyHandle = copyJob.Schedule(pinnedPositions.Capacity, 512);
+                copyHandle.Complete();
 
-            var copyHandle = copyJob.Schedule(pinnedPositions.Capacity, 256);
-            copyHandle.Complete();
+                // Weight
+                cReciprocalWeight.CopyFrom(reciprocalWeight);
+                _applyPending = false;
+            }
+        }
+
+
+        /// <summary>
+        /// Applies any external modifications to writeable data.
+        /// </summary>
+        public void ApplyModifiedData()
+        {
+            _applyPending = true;
         }
 
         public void Dispose()

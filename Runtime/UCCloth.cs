@@ -64,6 +64,7 @@ namespace UCloth
         private NativeList<ushort> pointQueryIndexCounts;
 
         private JobHandle? _job;
+        private JobHandle? _normalRecompute;
         private TaskCompletionSource<bool> onBeforeStart;
         private TaskCompletionSource<bool> onFinished;
 
@@ -100,6 +101,7 @@ namespace UCloth
         private void OnDestroy()
         {
             _job?.Complete();
+            _normalRecompute?.Complete();
 
             simData?.Dispose();
 
@@ -222,27 +224,11 @@ namespace UCloth
         /// </summary>
         private void ScheduleStart()
         {
-            // Update normals
-            UCNormalComputeJob normalJob = new()
-            {
-                vertices = simData.positionsReadOnly,
-                normals = simData.normalsReadOnly,
-                triangleNormals = simData.triangleNormalsReadOnly,
-                triangles = initialMeshData.triangles,
-                renderToSimLookup = initialMeshData.renderToSimLookup
-            };
-            var normalRecompute = normalJob.Schedule();
-
             UpdateColliderDTOs();
             VerifyDataValidity();
 
             _timestep = Time.timeScale * qualityProperties.timeScaleMultiplier / qualityProperties.simFrequency;
             _timestep = math.clamp(_timestep, 0f, qualityProperties.maxTimestep);
-
-            // Finish up completion before start
-            // Technically possible to make normal recomputation a dependency, but updating normals in UCRenderer is tricky
-            normalRecompute.Complete();
-            _ucRenderer.UpdateRenderingNormals(simData.normalsReadOnly);
 
             onBeforeStart?.SetResult(true);
             onBeforeStart = null;
@@ -293,6 +279,9 @@ namespace UCloth
             };
 
             _job = job.Schedule();
+
+            // As soon as finished simulating, recompute the normals
+            _normalRecompute = GetNormalRecomputeJob().Schedule(_job.Value);
         }
 
         /// <summary>
@@ -308,7 +297,12 @@ namespace UCloth
             onFinished?.SetResult(true);
             onFinished = null;
 
+            // Normals are recomputed as soon the job is finished, wait if not already done
+            if (_normalRecompute.HasValue)
+                _normalRecompute.Value.Complete();
+
             _ucRenderer.UpdateRenderingPositions(simData.cPositions);
+            _ucRenderer.UpdateRenderingNormals(simData.normalsReadOnly);
             UpdateAutooptimisation();
 
             // Dispose of colliders since they're updated every frame
@@ -320,6 +314,19 @@ namespace UCloth
             queryCopy.Dispose();
 
             _job = null;
+        }
+
+
+        private UCNormalComputeJob GetNormalRecomputeJob()
+        {
+            return new()
+            {
+                vertices = simData.positionsReadOnly,
+                normals = simData.normalsReadOnly,
+                triangleNormals = simData.triangleNormalsReadOnly,
+                triangles = initialMeshData.triangles,
+                renderToSimLookup = initialMeshData.renderToSimLookup
+            };
         }
 
 
@@ -564,6 +571,11 @@ namespace UCloth
             _pinner.SetUpDataPinned();
             simData.PrepareCopies();
             simData.CopyWriteableData();
+
+            // Compute initial normals
+            var normalCompute = GetNormalRecomputeJob();
+            normalCompute.Run();
+
             return true;
         }
     }

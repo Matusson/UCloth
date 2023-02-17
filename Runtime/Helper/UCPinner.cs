@@ -29,7 +29,9 @@ namespace UCloth
 
         internal void UpdateMoved()
         {
-            foreach(var collider in _colliders)
+            bool anyModified = false;
+
+            foreach (var collider in _colliders)
             {
                 var pinData = _pinData[collider];
 
@@ -38,10 +40,12 @@ namespace UCloth
                 if (currentMatrix.Equals(pinData.lastTransform))
                     continue;
 
+                anyModified = true;
+
                 pinData.lastTransform = currentMatrix;
 
                 // Set the pinned positions of nodes
-                for(int i = 0; i < pinData.pinnedNodeIds.Count; i++)
+                for (int i = 0; i < pinData.pinnedNodeIds.Count; i++)
                 {
                     ushort nodeId = pinData.pinnedNodeIds[i];
                     float3 relative = pinData.relativePositions[i];
@@ -51,6 +55,9 @@ namespace UCloth
                     _simData.pinnedPositions[nodeId] = worldSpace;
                 }
             }
+
+            if (anyModified)
+                _simData.ApplyModifiedData();
         }
 
         /// <summary>
@@ -67,7 +74,7 @@ namespace UCloth
             _colliders = _scheduler.pinColliders.OrderBy(x => x.bounds.size.magnitude).ToList();
 
             // Create pin data for every collider
-            for(int i = 0; i < _colliders.Count; i++)
+            for (int i = 0; i < _colliders.Count; i++)
             {
                 var collider = _colliders[i];
                 _pinData.Add(collider, new(collider.transform));
