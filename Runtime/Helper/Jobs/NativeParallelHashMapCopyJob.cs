@@ -2,6 +2,7 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
+using Unity.Mathematics;
 
 namespace UCloth
 {
@@ -9,7 +10,7 @@ namespace UCloth
     /// Copies <see cref="NativeParallelHashMap{TKey, TValue}"/> from source to dest.
     /// </summary>
     [BurstCompile]
-    internal struct NativeParallelHashMapCopyJob<TKey, TValue> : IJobParallelFor
+    internal struct NativeParallelHashMapCopyJob<TKey, TValue> : IJobParallelForBatch
         where TKey : struct, IEquatable<TKey> where TValue : struct
     {
         [ReadOnly]
@@ -25,9 +26,15 @@ namespace UCloth
             OutputWriter = dest.AsParallelWriter();
         }
 
-        public void Execute(int index)
+        public void Execute(int index, int count)
         {
-            OutputWriter.TryAdd(KeyValues.Keys[index], KeyValues.Values[index]);
+            int endIndex = index + count;
+            endIndex = math.clamp(endIndex, index, KeyValues.Length);
+
+            for (int i = index; i < endIndex; i++)
+            {
+                OutputWriter.TryAdd(KeyValues.Keys[i], KeyValues.Values[i]);
+            }
         }
     }
 }

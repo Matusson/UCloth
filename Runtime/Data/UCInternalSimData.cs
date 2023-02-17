@@ -118,7 +118,7 @@ namespace UCloth
                 cPinnedPositions.Clear();
                 NativeParallelHashMapCopyJob<ushort, float3> copyJob = new(pinnedPositions, cPinnedPositions);
 
-                var copyHandle = copyJob.Schedule(pinnedPositions.Capacity, 512);
+                var copyHandle = copyJob.ScheduleBatch(pinnedPositions.Capacity, 256);
                 copyHandle.Complete();
 
                 // Weight
