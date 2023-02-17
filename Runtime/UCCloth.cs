@@ -59,7 +59,6 @@ namespace UCloth
 
         // For point queries
         private NativeList<UCPointQueryData> pointQueries;
-        private NativeList<UCPointQueryData> queryCopy;
         private NativeList<ushort> pointQueryResults;
         private NativeList<ushort> pointQueryIndexCounts;
 
@@ -130,9 +129,6 @@ namespace UCloth
             pointQueryResults.Dispose();
             pointQueryIndexCounts.Dispose();
 
-            if (queryCopy.IsCreated)
-                queryCopy.Dispose();
-
             for (int i = 0; i < postprocessors?.Count; i++)
             {
                 postprocessors[i]?.Dispose();
@@ -179,11 +175,12 @@ namespace UCloth
         {
             // We can add the query straight away
             int queryIndex = pointQueries.Length;
-            pointQueries.Add(query);
 
             // Then we wait until a new task is scheduled, so that queries are copied into it
             onBeforeStart ??= new();
             await onBeforeStart.Task;
+
+            pointQueries.Add(query);
 
             // And then wait for the job to finish
             onFinished ??= new();
@@ -236,9 +233,6 @@ namespace UCloth
             // Copy data that might be written to by the Job
             simData.CopyWriteableData();
 
-            queryCopy = new(pointQueries.Capacity, Allocator.TempJob);
-            queryCopy.CopyFrom(pointQueries);
-
             UCJob job = new()
             {
                 positions = simData.cPositions,
@@ -270,7 +264,7 @@ namespace UCloth
                 extraThickness = thickness / 1000f,
                 qualityProperties = qualityProperties,
 
-                pointQueries = queryCopy,
+                pointQueries = pointQueries,
                 pointQueryResults = pointQueryResults,
                 pointQueryIndexCounts = pointQueryIndexCounts,
 
@@ -309,9 +303,6 @@ namespace UCloth
             sphereColDTOs.Dispose();
             capsuleColDTOs.Dispose();
             cubeColDTOs.Dispose();
-
-            // Clear query arrays
-            queryCopy.Dispose();
 
             _job = null;
         }
