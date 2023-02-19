@@ -122,8 +122,6 @@ namespace UCloth
             };
 
             thicknessJob.Run();
-            data.vertices = thicknessJob.vertices;
-            data.normals = thicknessJob.normals;
 
             return data;
         }
