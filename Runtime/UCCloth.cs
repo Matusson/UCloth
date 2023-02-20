@@ -5,7 +5,6 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.Profiling;
 
 namespace UCloth
 {
@@ -314,8 +313,8 @@ namespace UCloth
             return new()
             {
                 vertices = simData.positionsReadOnly,
-                normals = simData.normalsReadOnly,
-                triangleNormals = simData.triangleNormalsReadOnly,
+                normals = simData.cNormals,
+                triangleNormals = simData.cTriangleNormals,
                 triangles = initialMeshData.triangles,
                 renderToSimLookup = initialMeshData.renderToSimLookup
             };
@@ -531,8 +530,8 @@ namespace UCloth
                 edgesReadOnly = new NativeArray<UCEdge>(data.edges.ToArray(), Allocator.Persistent),
                 bendingEdgesReadOnly = new NativeArray<UCBendingEdge>(data.bendingEdges.ToArray(), Allocator.Persistent),
                 neighboursReadOnly = data.neighbours,
-                normalsReadOnly = new NativeArray<float3>(positions.Length, Allocator.Persistent),
-                triangleNormalsReadOnly = new NativeArray<float3>(initialMeshData.triangles.Length, Allocator.Persistent)
+                cNormals = new NativeArray<float3>(positions.Length, Allocator.Persistent),
+                cTriangleNormals = new NativeArray<float3>(initialMeshData.triangles.Length, Allocator.Persistent)
             };
 
             // The rest distance can be computed for every edge easily

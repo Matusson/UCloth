@@ -62,11 +62,15 @@ namespace UCloth
         /// Read-only access to node normals.
         /// </summary>
         public NativeArray<float3> normalsReadOnly;
+        internal NativeArray<float3> cNormals;
+
 
         /// <summary>
         /// Read-only access to triangle normals.
         /// </summary>
         public NativeArray<float3> triangleNormalsReadOnly;
+        internal NativeArray<float3> cTriangleNormals;
+
 
 
         /// <summary>
@@ -98,6 +102,13 @@ namespace UCloth
                 velocityReadOnly = new NativeArray<float3>(cVelocity, Allocator.Persistent);
 
 
+            if (!normalsReadOnly.IsCreated)
+                normalsReadOnly = new NativeArray<float3>(cNormals, Allocator.Persistent);
+
+            if (!triangleNormalsReadOnly.IsCreated)
+                triangleNormalsReadOnly = new NativeArray<float3>(cTriangleNormals, Allocator.Persistent);
+
+
             if (!cReciprocalWeight.IsCreated)
                 cReciprocalWeight = new NativeArray<float>(reciprocalWeight, Allocator.Persistent);
 
@@ -110,6 +121,9 @@ namespace UCloth
             // Read-only
             positionsReadOnly.CopyFrom(cPositions);
             velocityReadOnly.CopyFrom(cVelocity);
+
+            normalsReadOnly.CopyFrom(cNormals);
+            triangleNormalsReadOnly.CopyFrom(cTriangleNormals);
 
             // No need to do this every frame, only do this if modified
             if (_applyPending)
@@ -151,7 +165,9 @@ namespace UCloth
             bendingEdgesReadOnly.Dispose();
             neighboursReadOnly.Dispose();
             normalsReadOnly.Dispose();
+            cNormals.Dispose();
             triangleNormalsReadOnly.Dispose();
+            cTriangleNormals.Dispose();
             restDistancesReadOnly.Dispose();
             reciprocalWeight.Dispose();
             cReciprocalWeight.Dispose();
