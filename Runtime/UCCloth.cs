@@ -66,6 +66,8 @@ namespace UCloth
         private TaskCompletionSource<bool> onBeforeStart;
         private TaskCompletionSource<bool> onFinished;
 
+        public event EventHandler OnSimulationFinished;
+
         private int _lastSimFrequency;
         private float _timestep;
 
@@ -290,6 +292,7 @@ namespace UCloth
 
             onFinished?.SetResult(true);
             onFinished = null;
+            OnSimulationFinished?.Invoke(this, null);
 
             // Normals are recomputed as soon the job is finished, wait if not already done
             if (_normalRecompute.HasValue)

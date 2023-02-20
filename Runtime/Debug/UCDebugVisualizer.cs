@@ -1,4 +1,6 @@
 #if UNITY_EDITOR    // Can't place into another assembly as we refer to some internal components
+using System;
+using System.Collections;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEditor;
@@ -6,53 +8,77 @@ using UnityEngine;
 
 namespace UCloth
 {
+    /// <summary>
+    /// Allows viewing debug information on <see cref="UCCloth"/> objects.
+    /// </summary>
     public class UCDebugVisualizer : MonoBehaviour
     {
         [Header("Views")]
         public bool visualizePositions;
         public bool visualizeNormals;
-        public bool visualizeRelations;
+        public bool visualizeEdges;
         public bool visualizeVelocity;
-        public bool visualizeForces;
         public bool visualizePinned;
         public bool visualizeSelfCollisionRegions;
 
-        [Space]
-        [Header("Normals")]
-        public float normalLength;
-        [Tooltip("Due to precision errors in matrix multiplication, some normals can be not perfectly normalized.")]
-        public bool markNonNormalized;
+        public float visualizationScale = 1f;
 
         [Space]
-        [Header("Relations")]
-        public Gradient distanceGradient;
-        public int textSize;
+        [Header("Edges")]
+        public Gradient stretchingGradient;
 
         [Space]
         [Header("Velocity")]
         public Gradient velocityGradient;
-        public float velocityLength;
-        public float maxDebugVelocity;
-
-        [Space]
-        [Header("Force (Acceleration)")]
-        public Gradient forceGradient;
-        public float forceLength;
-        public float maxDebugForce;
+        public float maxDebugVelocity = 5;
 
         [Space]
         [Header("Self-Collision Regions")]
-        public Gradient regionsGradient;
-        public int tempMaxElements = 1;
-        public bool skipEmpty;
+        public Gradient regionDensityGradient;
+        public int maxDebugElements = 5;
+        public bool skipEmpty = true;
 
         private UCCloth _scheduler;
         private Renderer _renderer;
+
+        private Native3DHashmapArray<ushort> _selfColRegions;
+
 
         private void Start()
         {
             _scheduler = GetComponent<UCCloth>();
             _renderer = GetComponent<Renderer>();
+
+            _scheduler.OnSimulationFinished += CopySelfCol;
+        }
+
+        private void OnDestroy()
+        {
+            _scheduler.OnSimulationFinished -= CopySelfCol;
+            _selfColRegions.Dispose();
+        }
+
+        private void Reset()
+        {
+            // Set initial gradients
+            var keyset1 = new GradientColorKey[5]
+            {
+                new GradientColorKey(new Color(0f, 0.175f, 1f), 0f),
+                new GradientColorKey(new Color(0.283f, 0.645f, 0.95f), 0.4f),
+                new GradientColorKey(new Color(1f, 1f, 1f), 0.5f),
+                new GradientColorKey(new Color(1f, 0.72f, 0f), 0.6f),
+                new GradientColorKey(new Color(1f, 0f, 0f), 1f)
+            };
+            stretchingGradient.colorKeys = keyset1;
+            velocityGradient.colorKeys = keyset1;
+
+            var keyset2 = new GradientColorKey[3]
+            {
+                new GradientColorKey(new Color(1f, 0, 0f), 0f),
+                new GradientColorKey(new Color(1f, 1f, 1f), 0.5f),
+                new GradientColorKey(new Color(0f, 0f, 1f), 1f)
+            };
+            regionDensityGradient.colorKeys = keyset2;
         }
 
         private void OnDrawGizmos()
@@ -66,9 +92,10 @@ namespace UCloth
             if (visualizePositions)
             {
                 Gizmos.color = Color.white;
+                Vector3 size = new(visualizationScale * 0.01f, visualizationScale * 0.01f, visualizationScale * 0.01f);
                 foreach (var position in positions)
                 {
-                    Gizmos.DrawCube(position, new(0.1f, 0.1f, 0.1f));
+                    Gizmos.DrawCube(position, size);
                 }
             }
 
@@ -82,22 +109,13 @@ namespace UCloth
                     var normal = normals[i];
                     var position = positions[i];
 
-                    // Change colors if needed 
                     Color rayColor = Color.green;
-                    if (markNonNormalized)
-                    {
-                        float length = math.length(normal);
-
-                        if (length > 0.9999f && length < 1.0001f)
-                            rayColor = Color.red;
-
-                    }
-                    Debug.DrawRay(position, normal * normalLength, rayColor);
+                    Debug.DrawRay(position, normal * visualizationScale * 0.01f, rayColor);
                 }
             }
 
-            // RELATIONS
-            if (visualizeRelations)
+            // EDGES
+            if (visualizeEdges)
             {
                 Gizmos.color = Color.red;
                 var edges = _scheduler.simData.edgesReadOnly;
@@ -116,26 +134,12 @@ namespace UCloth
                     error += 0.5f;    //To handle negative values
                     error = math.clamp(error, -1f, 1f);
 
-                    Color guicolor = distanceGradient.Evaluate(error);
+                    Color guicolor = stretchingGradient.Evaluate(error);
                     Gizmos.color = guicolor;
-
-                    //Text
-                    if (textSize > 0)
-                    {
-                        Handles.color = guicolor;
-
-                        Vector3 edgeCenter = (ogPosition + tgtPosition) / 2;
-                        string text = ((error - 0.5f) * 100f).ToString("F0") + "%";
-
-                        GUIStyle style = EditorStyles.boldLabel;
-                        style.fontSize = textSize;
-                        style.normal.textColor = guicolor;
-                        Handles.Label(edgeCenter, text, style);
-                    }
 
                     Handles.color = guicolor;
                     Handles.DrawLine(ogPosition, tgtPosition, 2f);
-                    //Gizmos.DrawLine(ogPosition, tgtPosition);
+
                     edgeIndex++;
                 }
             }
@@ -151,22 +155,7 @@ namespace UCloth
                     float velocity = math.length(velocities[i]);
                     Gizmos.color = velocityGradient.Evaluate(velocity / maxDebugVelocity);
 
-                    Gizmos.DrawRay(positions[i], velocities[i] * velocityLength);
-                }
-            }
-
-            // FORCES
-            if (visualizeForces)
-            {
-                Gizmos.color = Color.white;
-                var forces = _scheduler.simData.cAcceleration;
-
-                for (int i = 0; i < positions.Length; i++)
-                {
-                    float force = math.length(forces[i]);
-                    Gizmos.color = forceGradient.Evaluate(force / maxDebugForce);
-
-                    Gizmos.DrawRay(positions[i], forces[i] * forceLength);
+                    Gizmos.DrawRay(positions[i], velocities[i] * visualizationScale * 0.01f);
                 }
             }
 
@@ -176,11 +165,13 @@ namespace UCloth
                 Gizmos.color = Color.blue;
 
                 var weight = _scheduler.simData.reciprocalWeight;
+                Vector3 size = new(visualizationScale * 0.013f, visualizationScale * 0.013f, visualizationScale * 0.013f);
+
                 for (ushort i = 0; i < positions.Length; i++)
                 {
                     float3 position = positions[i];
                     if (weight[i] < 0.001f)
-                        Gizmos.DrawCube(position, new(0.13f, 0.13f, 0.13f));
+                        Gizmos.DrawCube(position, size);
                 }
             }
 
@@ -191,10 +182,9 @@ namespace UCloth
                 var bounds = _renderer.bounds;
                 var boundSize = (float3)bounds.size;
 
-                var regions = _scheduler.simData.cSelfCollisionRegions;
-                var regionSize = regions.size;
+                var regionSize = _selfColRegions.size;
 
-                if (!regions.IsCreated())
+                if (!_selfColRegions.IsCreated())
                     return;
 
                 // Draw Bounding box
@@ -202,9 +192,9 @@ namespace UCloth
                 Gizmos.DrawWireCube(bounds.center, boundSize);
 
                 // Calculating offsets for aligning to BB correctly
-                float3 offset = boundSize / regions.size / 2;
+                float3 offset = boundSize / _selfColRegions.size / 2;
                 float3 extents = offset * 2f;
-                extents = math.max(extents, new float3(0.1f, 0.1f, 0.1f));
+                extents = math.max(extents, new float3(0.0001f, 0.0001f, 0.0001f));
 
                 for (int x = 0; x < regionSize.x; x++)
                 {
@@ -217,7 +207,7 @@ namespace UCloth
 
                             // Count how many nodes in the region, if any
                             int3 index = new(x, y, z);
-                            bool any = regions.TryGetItems(index, out NativeList<ushort> items);
+                            bool any = _selfColRegions.TryGetItems(index, out NativeList<ushort> items);
 
                             int count = any ? items.Length : 0;
 
@@ -227,7 +217,7 @@ namespace UCloth
                                 continue;
                             }
 
-                            var color = regionsGradient.Evaluate(count / (float)tempMaxElements);
+                            var color = regionDensityGradient.Evaluate(count / (float)maxDebugElements);
 
                             Gizmos.color = color;
                             Gizmos.DrawWireCube(pos, extents);
@@ -236,6 +226,32 @@ namespace UCloth
                     }
                 }
             }
+        }
+
+
+
+        // Data safety helpers
+        private void CopySelfCol(object sender, EventArgs _)
+        {
+            var schedRegions = _scheduler.simData.cSelfCollisionRegions;
+
+            // If populated, clear and reallocate
+            if (_selfColRegions.IsCreated())
+                _selfColRegions.Dispose();
+
+            _selfColRegions = new(schedRegions.size, Allocator.Persistent);
+
+            // Copy data to the new array
+            var keyValues = schedRegions._internalHm.GetKeyValueArrays(Allocator.Temp);
+
+            for (int i = 0; i < keyValues.Length; i++)
+            {
+                var key = keyValues.Keys[i];
+                var val = keyValues.Values[i];
+
+                _selfColRegions._internalHm.Add(key, val);
+            }
+            keyValues.Dispose();
         }
     }
 }
