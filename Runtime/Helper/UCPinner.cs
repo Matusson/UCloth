@@ -1,10 +1,8 @@
-﻿using log4net.Util;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -13,7 +11,7 @@ namespace UCloth
     /// <summary>
     /// Handles moving pinned nodes.
     /// </summary>
-    internal class UCPinner
+    internal class UCPinner : IDisposable
     {
         private readonly UCCloth _scheduler;
         private UCInternalSimData _simData;
@@ -29,7 +27,7 @@ namespace UCloth
 
         internal void UpdateMoved()
         {
-            bool anyModified = false;
+            List<JobHandle> scheduledUpdates = new();
 
             foreach (var collider in _colliders)
             {
@@ -40,23 +38,28 @@ namespace UCloth
                 if (currentMatrix.Equals(pinData.lastTransform))
                     continue;
 
-                anyModified = true;
-
                 pinData.lastTransform = currentMatrix;
 
-                // Set the pinned positions of nodes
-                for (int i = 0; i < pinData.pinnedNodeIds.Count; i++)
+                // Schedule the update, don't block the main thread
+                UCPinUpdateJob updateJob = new()
                 {
-                    ushort nodeId = pinData.pinnedNodeIds[i];
-                    float3 relative = pinData.relativePositions[i];
-
-                    // Target space is world space
-                    float3 worldSpace = math.transform(currentMatrix, relative);
-                    _simData.pinnedPositions[nodeId] = worldSpace;
-                }
+                    nodeIds = pinData.pinnedNodeIds,
+                    relativePositions = pinData.relativePositions,
+                    pinnedPositions = _simData.pinnedPositions,
+                    localToWorld = currentMatrix
+                };
+                var handle = updateJob.Schedule();
+                scheduledUpdates.Add(handle);
             }
 
-            if (anyModified)
+            // Complete the jobs before applying data
+            foreach (var handle in scheduledUpdates)
+            {
+                handle.Complete();
+            }
+
+            // No need to apply if no jobs were scheduled
+            if (scheduledUpdates.Count != 0)
                 _simData.ApplyModifiedData();
         }
 
@@ -158,6 +161,17 @@ namespace UCloth
             for (int i = 0; i < _simData.bendingEdgesReadOnly.Length; i++)
             {
                 _simData.bendingEdgesReadOnly[i] = tempBending[i];
+            }
+        }
+
+
+        public void Dispose()
+        {
+            var pinDatas = _pinData.Values;
+
+            foreach (var data in pinDatas)
+            {
+                data.Dispose();
             }
         }
     }

@@ -52,7 +52,7 @@ namespace UCloth
 
         private UCRenderer _ucRenderer;
         private UCAutoOptimizer _ucOptimizer;
-        private UCPinner _pinner;
+        private UCPinner _ucPinner;
         private MeshRenderer _meshRenderer;
         internal UCMeshData initialMeshData;
         internal NativeReference<UCAutoOptimizeData> optimizationData;
@@ -73,7 +73,7 @@ namespace UCloth
 
         private void Start()
         {
-            _pinner = new(this);
+            _ucPinner = new(this);
 
             bool success = SetUpData(out var meshData);
 
@@ -101,6 +101,7 @@ namespace UCloth
         {
             _job?.Complete();
             _normalRecompute?.Complete();
+            _ucPinner.Dispose();
 
             simData?.Dispose();
 
@@ -150,7 +151,7 @@ namespace UCloth
             if (!qualityProperties.minimizeLatency)
                 _ucRenderer.ScheduleTransformations();
 
-            _pinner.UpdateMoved();
+            _ucPinner.UpdateMoved();
             UpdateInternalPostprocessor();
 
             UpdateTimer();
@@ -559,7 +560,7 @@ namespace UCloth
             pointQueryResults = new(Allocator.Persistent);
             pointQueryIndexCounts = new(Allocator.Persistent);
 
-            _pinner.SetUpDataPinned();
+            _ucPinner.SetUpDataPinned();
             simData.PrepareCopies();
             simData.CopyWriteableData();
 
