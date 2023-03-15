@@ -71,7 +71,8 @@ namespace UCloth
             _simData = _scheduler.simData;
 
             _simData.reciprocalWeight = new NativeArray<float>(_simData.cPositions.Length, Allocator.Persistent);
-            _simData.pinnedPositions = new NativeParallelHashMap<ushort, float3>(64, Allocator.Persistent);
+            //TODO: We need to set the capacity here to fit all nodes either way - maybe keep it an array?
+            _simData.pinnedPositions = new NativeParallelHashMap<ushort, float3>(_simData.cPositions.Length, Allocator.Persistent);
 
             // Sort the pin colliders from smallest to biggest, so small colliders override big ones
             _colliders = _scheduler.pinColliders.OrderBy(x => x.bounds.size.magnitude).ToList();
