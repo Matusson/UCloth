@@ -5,6 +5,7 @@ using Unity.Jobs;
 using UnityEngine;
 using System.Runtime.CompilerServices;
 using Unity.Profiling;
+using UnityEngine.Assertions;
 
 namespace UCloth
 {
@@ -570,6 +571,9 @@ namespace UCloth
             // Do not process neighbouring vertices, otherwise self collision distance is pretty limited
             if (neighbours.KeyContainsValue((ushort)index1, (ushort)index2) || neighbours.KeyContainsValue((ushort)index2, (ushort)index1))
                 return;
+
+            // Causes explosions if happens, but shouldn't if there's no bugs
+            Assert.AreNotEqual(index1, index2);
 
             float3 posDiff = positions[index1] - positions[index2];
             float dist = math.length(posDiff);

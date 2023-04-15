@@ -69,6 +69,7 @@ namespace UCloth
         public event EventHandler OnSimulationFinished;
 
         private int _lastSimFrequency;
+        private bool _firstFrame = true;
         private float _timestep;
 
 
@@ -300,6 +301,12 @@ namespace UCloth
 
             _ucRenderer.UpdateRenderingPositions(simData.cPositions);
             _ucRenderer.UpdateRenderingNormals(simData.normalsReadOnly);
+            if (_firstFrame)
+            {
+                _ucRenderer.ScheduleTransformations();
+                _firstFrame = false;
+            }
+
             UpdateAutooptimisation();
 
             // Dispose of colliders since they're updated every frame

@@ -21,7 +21,7 @@ namespace UCloth
         {
             // Make sure the index is within max size
             int3 maxSize = new(MAX_SIZE, MAX_SIZE, MAX_SIZE);
-            size = math.clamp(size, new int3(0, 0, 0), maxSize);
+            size = math.clamp(size, new int3(1, 1, 1), maxSize);
 
             this.size = size;
 

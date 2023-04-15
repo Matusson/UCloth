@@ -26,13 +26,13 @@ namespace UCloth
                 regions.TryGetItemsNoAlloc(index - new int3(0, 0, 1), ref surrounding);
 
 
-            if (Hint.Likely(index.x - 1 < regions.size.x))
+            if (Hint.Likely(index.x < regions.size.x - 1))
                 regions.TryGetItemsNoAlloc(index + new int3(1, 0, 0), ref surrounding);
 
-            if (Hint.Likely(index.y - 1 < regions.size.y))
+            if (Hint.Likely(index.y < regions.size.y - 1))
                 regions.TryGetItemsNoAlloc(index + new int3(0, 1, 0), ref surrounding);
 
-            if (Hint.Likely(index.z - 1 < regions.size.z))
+            if (Hint.Likely(index.z < regions.size.z - 1))
                 regions.TryGetItemsNoAlloc(index + new int3(0, 0, 1), ref surrounding);
 
             // No corners on 1st accuracy level
@@ -44,25 +44,25 @@ namespace UCloth
             if (Hint.Likely(index.x > 0 && index.y > 0 && index.z > 0))
                 regions.TryGetItemsNoAlloc(index + new int3(-1, -1, -1), ref surrounding);
 
-            if (Hint.Likely(index.x - 1 < regions.size.x && index.y > 0 && index.z > 0))
+            if (Hint.Likely(index.x < regions.size.x - 1 && index.y > 0 && index.z > 0))
                 regions.TryGetItemsNoAlloc(index + new int3(1, -1, -1), ref surrounding);
 
-            if (Hint.Likely(index.x > 0 && index.y - 1 < regions.size.y && index.z > 0))
+            if (Hint.Likely(index.x > 0 && index.y < regions.size.y - 1 && index.z > 0))
                 regions.TryGetItemsNoAlloc(index + new int3(-1, 1, -1), ref surrounding);
 
-            if (Hint.Likely(index.x - 1 < regions.size.x && index.y - 1 < regions.size.y && index.z > 0))
+            if (Hint.Likely(index.x < regions.size.x - 1 && index.y < regions.size.y - 1 && index.z > 0))
                 regions.TryGetItemsNoAlloc(index + new int3(1, 1, -1), ref surrounding);
 
-            if (Hint.Likely(index.x > 0 && index.y > 0 && index.z - 1 < regions.size.z))
+            if (Hint.Likely(index.x > 0 && index.y > 0 && index.z < regions.size.z - 1))
                 regions.TryGetItemsNoAlloc(index + new int3(-1, -1, 1), ref surrounding);
 
-            if (Hint.Likely(index.x - 1 < regions.size.x && index.y > 0 && index.z - 1 < regions.size.z))
+            if (Hint.Likely(index.x < regions.size.x - 1 && index.y > 0 && index.z < regions.size.z - 1))
                 regions.TryGetItemsNoAlloc(index + new int3(1, -1, 1), ref surrounding);
 
-            if (Hint.Likely(index.x > 0 && index.y - 1 < regions.size.y && index.z - 1 < regions.size.z))
+            if (Hint.Likely(index.x > 0 && index.y < regions.size.y - 1 && index.z < regions.size.z - 1))
                 regions.TryGetItemsNoAlloc(index + new int3(-1, 1, 1), ref surrounding);
 
-            if (Hint.Likely(index.x - 1 < regions.size.x && index.y - 1 < regions.size.y && index.z - 1 < regions.size.z))
+            if (Hint.Likely(index.x < regions.size.x - 1 && index.y < regions.size.y - 1 && index.z < regions.size.z - 1))
                 regions.TryGetItemsNoAlloc(index + new int3(1, 1, 1), ref surrounding);
 
             return surrounding;

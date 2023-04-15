@@ -30,7 +30,7 @@ namespace UCloth
 
         private UCRenderingMeshData _data;
         private readonly int _rawVertexCount;
-        private float4x4 _lastTransformation;
+        private float4x4 _lastTransformation = float4x4.identity;
         private bool _canReuseData;
 
         private const int BATCH_SIZE = 512;
@@ -45,6 +45,7 @@ namespace UCloth
             _rawVertexCount = _filter.mesh.vertexCount;
             _renderToSimIndexLookup = data.renderToSimLookup;
 
+            _lastTransformation = _transform.worldToLocalMatrix;
             _latestWorldSpacePositions = new(data.positions.Count, Allocator.Persistent);
             _latestWorldSpaceNormals = new(data.positions.Count, Allocator.Persistent);
 
