@@ -75,7 +75,7 @@ namespace UCloth
             _simData.pinnedPositions = new NativeParallelHashMap<ushort, float3>(_simData.cPositions.Length, Allocator.Persistent);
 
             // Sort the pin colliders from smallest to biggest, so small colliders override big ones
-            _colliders = _scheduler.pinColliders.OrderBy(x => x.bounds.size.magnitude).ToList();
+            _colliders = _scheduler.pinColliders.Where(x => x.enabled && x.gameObject.activeInHierarchy).OrderBy(x => x.bounds.size.magnitude).ToList();
 
             // Create pin data for every collider
             for (int i = 0; i < _colliders.Count; i++)
