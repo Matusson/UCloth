@@ -29,6 +29,8 @@ namespace UCloth
         internal NativeArray<float3> cAcceleration;
         internal NativeArray<float3> cTempAcceleration;
 
+        internal NativeArray<float> cFriction;
+
 
         // --- Mesh Data
 
@@ -160,6 +162,8 @@ namespace UCloth
 
             cAcceleration.Dispose();
             cTempAcceleration.Dispose();
+
+            cFriction.Dispose();
 
             edgesReadOnly.Dispose();
             bendingEdgesReadOnly.Dispose();

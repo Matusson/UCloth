@@ -242,6 +242,7 @@ namespace UCloth
                 velocity = simData.cVelocity,
                 acceleration = simData.cAcceleration,
                 tempAcceleration = simData.cTempAcceleration,
+                frictionMultiplier = simData.cFriction,
 
                 selfCollisionRegions = simData.cSelfCollisionRegions,
                 utilizedRegionSet = simData.cUtilizedSelfColRegions,
@@ -384,7 +385,7 @@ namespace UCloth
                     position = sphere.transform.TransformPoint(sphere.center),
                     radius = sphere.radius * radiusScale,
                     friction = UCColliderDTOHelper.GetFriction(sphere)
-                };
+            };
             }
 
             // Capsules
@@ -559,6 +560,8 @@ namespace UCloth
             simData.cVelocity = new NativeArray<float3>(simData.cPositions.Length, Allocator.Persistent);
             simData.cAcceleration = new NativeArray<float3>(simData.cPositions.Length, Allocator.Persistent);
             simData.cTempAcceleration = new NativeArray<float3>(simData.cPositions.Length, Allocator.Persistent);
+            simData.cFriction = new NativeArray<float>(simData.cPositions.Length, Allocator.Persistent);
+
 
             simData.cUtilizedSelfColRegions = new NativeParallelHashSet<int3>(100, Allocator.Persistent);   //TODO: Arbitrary magic number, fix
 

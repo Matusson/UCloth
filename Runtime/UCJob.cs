@@ -18,6 +18,8 @@ namespace UCloth
         public NativeArray<float3> velocity;
         internal NativeArray<float3> acceleration;
         internal NativeArray<float3> tempAcceleration;
+        internal NativeArray<float> frictionMultiplier;
+
 
         internal Native3DHashmapArray<ushort> selfCollisionRegions;
         internal NativeParallelHashSet<int3> utilizedRegionSet;
@@ -83,9 +85,9 @@ namespace UCloth
         public UCQualityProperties qualityProperties;
         public float baseTimestep;
         public float extraThickness;
-
         private bool _computedRegions;
 
+        // Small cached optimizations
         private ushort _nodeCount;
         private int _edgeCount;
         private int _bendingEdgeCount;
@@ -162,10 +164,11 @@ namespace UCloth
             // Adapted from https://en.wikipedia.org/wiki/Verlet_integration#Algorithmic_representation
             for (int i = 0; i < _nodeCount; i++)
             {
-                float3 acc = acceleration[i];
+                // In testing, multiplying my friction here leads to slightly better friction forces, but only very slightly
+                float3 acc = acceleration[i] * frictionMultiplier[i];
+
                 float3 newPos = positions[i] + (velocity[i] * dt) + (acc * (dt * dt * 0.5f));
                 positions[i] = newPos;
-
 
                 // Save so it persists between forces update
                 tempAcceleration[i] = acc;
@@ -180,9 +183,8 @@ namespace UCloth
 
             for (int i = 0; i < _nodeCount; i++)
             {
-                float3 acc = acceleration[i];
+                float3 acc = acceleration[i] * frictionMultiplier[i];
                 float3 newVel = velocity[i] + (tempAcceleration[i] + acc) * (dt * 0.5f);
-
 
                 // And update the values
                 velocity[i] = newVel - (newVel * simProperties.airResistanceMultiplier * dt);
@@ -222,24 +224,26 @@ namespace UCloth
                 float stretchAmount = distance / restDistance;
 
                 // Only apply the correction if above the threshold
-                if (stretchAmount <= material.maxStretch)
+                if (stretchAmount <= material.maxStretch)   //TODO: Check if clamping and executing anyway is faster than the branch
                     continue;
 
                 float correction = (distance - restDistance * material.maxStretch) / distance;
 
-                float totalWeight = reciprocalWeight[edge.nodeIndex1] + reciprocalWeight[edge.nodeIndex2];
+                float totalWeight = reciprocalWeight[edge.nodeIndex1] + reciprocalWeight[edge.nodeIndex2];  //TODO: Potentially can be removed now?
                 if (totalWeight < 0.0001f)  // If two nodes are pinned at the same time, division below is a problem
                     continue;
 
                 float weightCorrection1 = reciprocalWeight[edge.nodeIndex1] / totalWeight;
                 float weightCorrection2 = reciprocalWeight[edge.nodeIndex2] / totalWeight;
 
-                positions[edge.nodeIndex1] = pos1 + vec1To2 * correction * weightCorrection1;
+                float friction1 = frictionMultiplier[edge.nodeIndex1];
+                float friction2 = frictionMultiplier[edge.nodeIndex2];
+
+                positions[edge.nodeIndex1] = pos1 + vec1To2 * correction * weightCorrection1 * friction1;
                 velocity[edge.nodeIndex1] = velocity[edge.nodeIndex1] + correction * weightCorrection1 * material.energyConservation * vec1To2;
 
-                positions[edge.nodeIndex2] = pos2 - vec1To2 * correction * weightCorrection2;
+                positions[edge.nodeIndex2] = pos2 - vec1To2 * correction * weightCorrection2 * friction2;
                 velocity[edge.nodeIndex2] = velocity[edge.nodeIndex2] - correction * weightCorrection2 * material.energyConservation * vec1To2;
-
             }
         }
 
@@ -247,6 +251,12 @@ namespace UCloth
         {
             float correctedContactOffset = collisionSettings.collisionContactOffset + extraThickness;
             float3 contactOffset3d = new(correctedContactOffset, correctedContactOffset, correctedContactOffset);
+
+            // Set initial values for friction
+            for (int i = 0; i < _nodeCount; i++)
+            {
+                frictionMultiplier[i] = 1f;
+            }
 
             for (int i = 0; i < _edgeCount; i++)
             {
@@ -263,16 +273,20 @@ namespace UCloth
 
                     if (distDelta > 0f)
                     {
-                        float3 awayFromCentre = math.normalize(position - collider.position);
-                        float3 force = awayFromCentre * distDelta;
+                        float3 collisionNormal = math.normalize(position - collider.position);
+                        float3 force = collisionNormal * distDelta;
+
                         positions[edge.nodeIndex1] = positions[edge.nodeIndex1] + force;
                         positions[edge.nodeIndex2] = positions[edge.nodeIndex2] + force;
 
-                        // Inverting velocity helps with nodes passing through with low density, but adds a lot of jitter
-                        float frictionMultiplier = 1f - (collider.friction * collisionSettings.collisionFriction);
-                        frictionMultiplier = math.clamp(frictionMultiplier, 0, 1);
-                        velocity[edge.nodeIndex1] = velocity[edge.nodeIndex1] * frictionMultiplier;
-                        velocity[edge.nodeIndex2] = velocity[edge.nodeIndex2] * frictionMultiplier;
+                        float frictionMultiplier = 1f - math.clamp(collider.friction * collisionSettings.collisionFriction, 0f, 1f);
+
+                        this.frictionMultiplier[edge.nodeIndex1] = frictionMultiplier;
+                        this.frictionMultiplier[edge.nodeIndex2] = frictionMultiplier;
+
+                        // Inverting velocity here helps with nodes passing through with low density, but adds jitter
+                        velocity[edge.nodeIndex1] = new float3();   //TODO: Set this correctly by adding corrective velocity based on the collider vel
+                        velocity[edge.nodeIndex2] = new float3();
                     }
                 }
 
