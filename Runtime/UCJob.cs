@@ -253,6 +253,9 @@ namespace UCloth
             float3 contactOffset3d = new(correctedContactOffset, correctedContactOffset, correctedContactOffset);
 
             // Set initial values for friction
+            // and NOTE: Currently friction will be overwritten by the next collision.
+            // This could be fixed by reading the value and either multiplying it or min()/max()-ing it, but this is a rare case
+            // and should not be problematic.
             for (int i = 0; i < _nodeCount; i++)
             {
                 frictionMultiplier[i] = 1f;
@@ -313,10 +316,13 @@ namespace UCloth
                         positions[edge.nodeIndex2] = positions[edge.nodeIndex2] + force;
 
                         // Inverting velocity helps with nodes passing through with low density, but adds a lot of jitter
-                        float frictionMultiplier = 1f - (collider.friction * collisionSettings.collisionFriction);
-                        frictionMultiplier = math.clamp(frictionMultiplier, 0, 1);
-                        velocity[edge.nodeIndex1] = velocity[edge.nodeIndex1] * frictionMultiplier;
-                        velocity[edge.nodeIndex2] = velocity[edge.nodeIndex2] * frictionMultiplier;
+                        float frictionMultiplier = 1f - math.clamp(collider.friction * collisionSettings.collisionFriction, 0f, 1f);
+
+                        this.frictionMultiplier[edge.nodeIndex1] = frictionMultiplier;
+                        this.frictionMultiplier[edge.nodeIndex2] = frictionMultiplier;
+
+                        velocity[edge.nodeIndex1] = new float3();
+                        velocity[edge.nodeIndex2] = new float3();
                     }
                 }
 
@@ -364,10 +370,13 @@ namespace UCloth
                         positions[edge.nodeIndex2] = positions[edge.nodeIndex2] + force;
 
                         // Inverting velocity helps with nodes passing through with low density, but adds a lot of jitter
-                        float frictionMultiplier = 1f - (collider.friction * collisionSettings.collisionFriction);
-                        frictionMultiplier = math.clamp(frictionMultiplier, 0, 1);
-                        velocity[edge.nodeIndex1] = velocity[edge.nodeIndex1] * frictionMultiplier;
-                        velocity[edge.nodeIndex2] = velocity[edge.nodeIndex2] * frictionMultiplier;
+                        float frictionMultiplier = 1f - math.clamp(collider.friction * collisionSettings.collisionFriction, 0f, 1f);
+
+                        this.frictionMultiplier[edge.nodeIndex1] = frictionMultiplier;
+                        this.frictionMultiplier[edge.nodeIndex2] = frictionMultiplier;
+
+                        velocity[edge.nodeIndex1] = new float3();
+                        velocity[edge.nodeIndex2] = new float3();
                     }
                 }
             }

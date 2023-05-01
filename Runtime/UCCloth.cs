@@ -385,7 +385,7 @@ namespace UCloth
                     position = sphere.transform.TransformPoint(sphere.center),
                     radius = sphere.radius * radiusScale,
                     friction = UCColliderDTOHelper.GetFriction(sphere)
-            };
+                };
             }
 
             // Capsules
