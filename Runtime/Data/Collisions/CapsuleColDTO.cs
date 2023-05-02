@@ -11,6 +11,8 @@ namespace UCloth
         public float3 ba;   // Storing b coordinates is the same as storing the `ba` vector, but b is only used to calculate `ba`, so this saves memory 
 
         public float radius;
+
+        public float3 velocity;
         public float friction;
     }
 }

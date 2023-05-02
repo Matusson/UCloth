@@ -31,12 +31,14 @@
                 timeScaleMultiplier = 1f,
                 maxTimestep = 0.03f,
                 iterations = 2,
-                constraintIterations = 5
+                constraintIterations = 5,
+                minimizeLatency = false
             };
 
             cloth.collisionProperties = new UCCollisionSettings()
             {
                 collisionFriction = 1f,
+                collisionVelocityCorrection = 0.7f,
                 collisionContactOffset = 0.001f,
                 enableSelfCollision = false,
                 selfCollisionDistance = 0.03f,

@@ -282,14 +282,15 @@ namespace UCloth
                         positions[edge.nodeIndex1] = positions[edge.nodeIndex1] + force;
                         positions[edge.nodeIndex2] = positions[edge.nodeIndex2] + force;
 
+                        // Calculate and apply friction
                         float frictionMultiplier = 1f - math.clamp(collider.friction * collisionSettings.collisionFriction, 0f, 1f);
 
                         this.frictionMultiplier[edge.nodeIndex1] = frictionMultiplier;
                         this.frictionMultiplier[edge.nodeIndex2] = frictionMultiplier;
 
-                        // Inverting velocity here helps with nodes passing through with low density, but adds jitter
-                        velocity[edge.nodeIndex1] = new float3();   //TODO: Set this correctly by adding corrective velocity based on the collider vel
-                        velocity[edge.nodeIndex2] = new float3();
+                        // Apply collider's velocity back to the nodes, helps with fast-moving colliders
+                        velocity[edge.nodeIndex1] = (collider.velocity / baseTimestep) * collisionSettings.collisionVelocityCorrection;
+                        velocity[edge.nodeIndex2] = (collider.velocity / baseTimestep) * collisionSettings.collisionVelocityCorrection;
                     }
                 }
 
@@ -315,14 +316,15 @@ namespace UCloth
                         positions[edge.nodeIndex1] = positions[edge.nodeIndex1] + force;
                         positions[edge.nodeIndex2] = positions[edge.nodeIndex2] + force;
 
-                        // Inverting velocity helps with nodes passing through with low density, but adds a lot of jitter
+                        // Calculate and apply friction
                         float frictionMultiplier = 1f - math.clamp(collider.friction * collisionSettings.collisionFriction, 0f, 1f);
 
                         this.frictionMultiplier[edge.nodeIndex1] = frictionMultiplier;
                         this.frictionMultiplier[edge.nodeIndex2] = frictionMultiplier;
 
-                        velocity[edge.nodeIndex1] = new float3();
-                        velocity[edge.nodeIndex2] = new float3();
+                        // Apply collider's velocity back to the nodes, helps with fast-moving colliders
+                        velocity[edge.nodeIndex1] = (collider.velocity / baseTimestep) * collisionSettings.collisionVelocityCorrection;
+                        velocity[edge.nodeIndex2] = (collider.velocity / baseTimestep) * collisionSettings.collisionVelocityCorrection;
                     }
                 }
 
@@ -369,14 +371,15 @@ namespace UCloth
                         positions[edge.nodeIndex1] = positions[edge.nodeIndex1] + force;
                         positions[edge.nodeIndex2] = positions[edge.nodeIndex2] + force;
 
-                        // Inverting velocity helps with nodes passing through with low density, but adds a lot of jitter
+                        // Calculate and apply friction
                         float frictionMultiplier = 1f - math.clamp(collider.friction * collisionSettings.collisionFriction, 0f, 1f);
 
                         this.frictionMultiplier[edge.nodeIndex1] = frictionMultiplier;
                         this.frictionMultiplier[edge.nodeIndex2] = frictionMultiplier;
 
-                        velocity[edge.nodeIndex1] = new float3();
-                        velocity[edge.nodeIndex2] = new float3();
+                        // Apply collider's velocity back to the nodes, helps with fast-moving colliders
+                        velocity[edge.nodeIndex1] = (collider.velocity / baseTimestep) * collisionSettings.collisionVelocityCorrection;
+                        velocity[edge.nodeIndex2] = (collider.velocity / baseTimestep) * collisionSettings.collisionVelocityCorrection;
                     }
                 }
             }

@@ -11,6 +11,7 @@ namespace UCloth
         public float3 position;
         public float radius;
 
+        public float3 velocity;
         public float friction;
     }
 }

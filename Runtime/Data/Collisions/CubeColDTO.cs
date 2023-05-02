@@ -15,6 +15,7 @@ namespace UCloth
         public float4x4 localMatrix;
         public float4x4 worldMatrix;   // Theoretically not necessary, since world is inverse of global, but matrix inversion is expensive
 
+        public float3 velocity;
         public float friction;
     }
 }

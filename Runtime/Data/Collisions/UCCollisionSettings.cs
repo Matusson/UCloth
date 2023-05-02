@@ -14,6 +14,10 @@ namespace UCloth
         [Range(0f, 2f)]
         public float collisionFriction;
 
+        [Tooltip("Collider velocity is multiplied by this factor and applied to colliding vertices. This can help with fast-moving colliders.")]
+        [Range(0f, 2f)]
+        public float collisionVelocityCorrection;
+
         [Tooltip("Extra buffer between cloth and colliders.")]
         public float collisionContactOffset;
 

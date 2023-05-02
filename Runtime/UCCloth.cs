@@ -51,7 +51,9 @@ namespace UCloth
 
         private UCRenderer _ucRenderer;
         private UCAutoOptimizer _ucOptimizer;
+        private UCColliderTracker _ucColliderTracker;
         private UCPinner _ucPinner;
+
         private MeshRenderer _meshRenderer;
         internal UCMeshData initialMeshData;
         internal NativeReference<UCAutoOptimizeData> optimizationData;
@@ -89,6 +91,7 @@ namespace UCloth
                 GetComponent<MeshFilter>(), GetComponent<MeshCollider>());
 
             _ucOptimizer = new(this);
+            _ucColliderTracker = new();
 
             _meshRenderer = GetComponent<MeshRenderer>();
             InitializeTimer();
@@ -384,6 +387,7 @@ namespace UCloth
                 {
                     position = sphere.transform.TransformPoint(sphere.center),
                     radius = sphere.radius * radiusScale,
+                    velocity = _ucColliderTracker.GetAndUpdateVelocity(sphere),
                     friction = UCColliderDTOHelper.GetFriction(sphere)
                 };
             }
@@ -407,6 +411,7 @@ namespace UCloth
                     a = offsetPosition + quarterHeight,
                     ba = -2 * quarterHeight,
                     radius = capsule.radius * radiusScale,
+                    velocity = _ucColliderTracker.GetAndUpdateVelocity(capsule),
                     friction = UCColliderDTOHelper.GetFriction(capsule)
                 };
             }
@@ -426,6 +431,7 @@ namespace UCloth
                     size = cube.size,
                     localMatrix = cube.transform.worldToLocalMatrix,
                     worldMatrix = cube.transform.localToWorldMatrix,
+                    velocity = _ucColliderTracker.GetAndUpdateVelocity(cube),
                     friction = UCColliderDTOHelper.GetFriction(cube)
                 };
             }
@@ -436,6 +442,7 @@ namespace UCloth
             // Self-collision preparation
             int3 regions = (int3)math.ceil(_meshRenderer.bounds.size * collisionProperties.gridDensity);
             simData.cSelfCollisionRegions = new Native3DHashmapArray<ushort>(regions, Allocator.TempJob);
+
         }
 
         /// <summary>
