@@ -120,6 +120,7 @@ namespace UCloth
             for (int i = 0; i < qualityProperties.iterations; i++)
             {
                 Integrate(timestep);
+                //ApplyCollisions();    //NOTE: Uncommenting this will majorly boost collision quality at a notable performance impact
             }
             integrationMarker.End();
 
