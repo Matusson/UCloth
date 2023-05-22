@@ -58,7 +58,7 @@ namespace UCloth
             _selfColRegions.Dispose();
         }
 
-        private void Reset()
+        public void Reset()
         {
             // Set initial gradients
             var keyset1 = new GradientColorKey[5]
@@ -69,7 +69,10 @@ namespace UCloth
                 new GradientColorKey(new Color(1f, 0.72f, 0f), 0.6f),
                 new GradientColorKey(new Color(1f, 0f, 0f), 1f)
             };
+            stretchingGradient = new();
             stretchingGradient.colorKeys = keyset1;
+
+            velocityGradient = new();
             velocityGradient.colorKeys = keyset1;
 
             var keyset2 = new GradientColorKey[3]
@@ -78,6 +81,7 @@ namespace UCloth
                 new GradientColorKey(new Color(1f, 1f, 1f), 0.5f),
                 new GradientColorKey(new Color(0f, 0f, 1f), 1f)
             };
+            regionDensityGradient = new();
             regionDensityGradient.colorKeys = keyset2;
         }
 
