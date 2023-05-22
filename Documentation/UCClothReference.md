@@ -1,6 +1,6 @@
 The UC Cloth component has a lot of parameters that allow you to heavily customize the simulation. However, configuring them can be difficult, especially initially. This documents hopefully shines some light on what each parameters does, and how to adjust it effectively.
 
----
+<br>
 - Preprocessor Type <br>
 Only the Mesh option is available. You can extend the component to allow generating simulation data from procedural sources.
 
@@ -8,7 +8,7 @@ Only the Mesh option is available. You can extend the component to allow generat
 Here you can specify colliders that will act as pins for the simulation. Every cloth vertex that is within the collider will be pinned to this object. Pin colliders can also move, and the vertices will follow them. Sometimes the placement of the pins is obvious (for example, for a flag it would be the point of contact with the pole), but you can also use them in places where you need to make the simulation predictable. For example, pinning part of character's clothing to their hands, waist or neck will reduce the possibility of collision issues. You can use triggers to avoid colliding with other physics objects.
 
 
----
+<br>
 ## Material Properties
 - Stiffness Coefficient <br>
 Controls how strong the vertices are pulled together to their target distances. This depends heavily on vertex density. If it's too low, cloth will stretch. Increasing it might require you to increase the iteration count or sim frequency, as large movements in a single iteration can collapse the simulation.
@@ -28,8 +28,7 @@ Affects the strength of bending forces, useful in simulating materials like leat
 - Vertex Mass <br>
 Affects the overall mass of the cloth. Unstable, only small adjustments recommended if at all.
 
-
----
+<br>
 ## Simulation Properties
 - Gravity Multiplier <br>
 Affects how strong the gravity is. This is a multiplier for scene gravity value.
@@ -38,7 +37,7 @@ Affects how strong the gravity is. This is a multiplier for scene gravity value.
 Multiplier for air resistance. This is only an approximation, as the simulator does not solve for aerodynamics. Changing it can change the perceived "viscousity" of the air.
 
 
----
+<br>
 ## Quality Properties
 - Sim Frequency <br>
 How many times the simulation will try to run per second. Low values will lead to a high time step, which can decrease simulation stability and cause a collapse. Highly depends on the cloth mesh.
@@ -59,7 +58,7 @@ Controls how many times, per simulation frame, edge length constraints are appli
 By default, the simulation can have around 1 frame of latency due to scheduling considerations, which can take better advantage of the background threads. If minimizing latency is important, this setting can slightly improve it at the cost of performance.
 
 
----
+<br>
 ## Collision Properties
 - Collision Friction <br>
 Multiplier for object friction. Setting it too high will lead to weird results. Base friction is derived from the "Dynamic Friction" property of collider's physics material.
@@ -93,12 +92,12 @@ If the setting is not None, the self-collision grid size is adjusted automatical
 If set to None, manually specify the grid density using the parameter below.
 
 
----
+<br>
 ## Colliders
-All colliders have to be specified in those lists. Note that there are performance differences between the types - spheres are the fastest, capsules are slightly slower, and boxes/cubes are a lot more expensive. Note that you can use triggers as colliders, which will still collide with the cloth, but not with other objects. 
+All colliders have to be specified in those lists. Note that there are performance differences between the types - spheres are the fastest, capsules are slightly slower, and boxes/cubes are a lot more expensive. Note that you can use triggers as colliders, which will still collide with the cloth, but not with other objects. Non-uniformly scaled colliders will not work well. 
 
 
----
+<br>
 ## Post Processing
 - Thickness<br>
 Adds procedural thickness to the material by extruding vertices. This allows simulating cloth with thickness without including both sides in the simulation mesh, which prevents the cloth clipping into itself.

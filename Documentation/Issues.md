@@ -11,3 +11,5 @@ This file contains a list of known issues and possible potential improvements yo
 - Currently, the simulation mesh is directly coupled to the render mesh. Use tessellation for smoother meshes. For more flexibility, you would need to implement a retargeting system to decouple these two.
 - Currently, the pinning system is always active. Giving the option to disable pins when the pinning gameobject is disabled could add some extra flexibility to the simulation.
 - Primitive collision with spheres, capsules, and boxes is available. Technically, SDF collision should also be possible.
+
+Other limitations, issues, and potential improvement areas are marked with // TODO and // NOTE in code.
