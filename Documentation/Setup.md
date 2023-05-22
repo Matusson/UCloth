@@ -9,6 +9,6 @@ This document details basic setup of a UC Cloth component.
 4. Run the application. Depending on the mesh, you might see a lot of stretching, instabilities, or even explosions. The tool does not estimate default parameters, and if you experience issues, you will need to adjust it yourself.
 Start with adjusting stiffness coefficient (and lightly damping coefficient alongside it) until little or no stretching occurs. If you're using a very high density mesh, try increasing iterations or constraint iterations, particularly if you're seeing "explosions". Setting constraint iterations to 0 can help with the initial parameters as well.  
 
-5. (Optional) Add the "UC Debug Visualizer" component. This can help visualizing various parameters.
+5. (Optional) Add the "UC Debug Visualizer" component. This can help visualizing various parameters, including stretching with the "Edges" option.
 
 6. Once basic default parameters are set, refine the parameters using the [reference](/Documentation/UCClothReference.md).
