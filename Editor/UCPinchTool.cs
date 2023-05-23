@@ -12,6 +12,7 @@ namespace UCloth.Editor
     {
         private bool nodeSelected;
         private ushort selectedNodeIndex;
+        private float3 handlePos;
 
         UCCloth cloth;
 
@@ -90,15 +91,19 @@ namespace UCloth.Editor
                 selectedNodeIndex = lowestIndex;
                 nodeSelected = true;
 
-                float3 localPos = cloth.transform.InverseTransformPoint(cloth.simData.positionsReadOnly[selectedNodeIndex]);
+                float3 pos = cloth.simData.positionsReadOnly[selectedNodeIndex];
+                handlePos = pos;
                 cloth.simData.reciprocalWeight[selectedNodeIndex] = 0;
-                cloth.simData.pinnedPositions.Add(selectedNodeIndex, localPos);
+                cloth.simData.pinnedPositions.Add(selectedNodeIndex, pos);
+
+                cloth.simData.ApplyModifiedData();
             }
             else
             {
-                float3 pos = Handles.PositionHandle(cloth.simData.positionsReadOnly[selectedNodeIndex], Quaternion.identity);
-                cloth.simData.positionsReadOnly[selectedNodeIndex] = pos;
-                cloth.simData.pinnedPositions[selectedNodeIndex] = cloth.transform.InverseTransformPoint(pos);
+                handlePos = Handles.PositionHandle(handlePos, Quaternion.identity);
+                cloth.simData.pinnedPositions[selectedNodeIndex] = handlePos;
+                cloth.simData.ApplyModifiedData();
+
             }
         }
     }
