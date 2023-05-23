@@ -49,7 +49,6 @@ namespace UCloth
             _latestWorldSpacePositions = new(data.positions.Count, Allocator.Persistent);
             _latestWorldSpaceNormals = new(data.positions.Count, Allocator.Persistent);
 
-
             _data = new()
             {
                 vertices = new NativeArray<float3>(filter.mesh.vertices.Length, Allocator.Persistent),
@@ -112,6 +111,7 @@ namespace UCloth
             }
 
             mesh.SetNormals(_data.normals);
+            mesh.RecalculateTangents();     // Recalculate tangents for normal maps
             mesh.RecalculateBounds();
 
             // Setup for reusing data later
