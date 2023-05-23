@@ -1,5 +1,7 @@
 # Prototype Burst-based cloth simulation for Unity
 
+![UCloth - Burst-based cloth prototype for Unity](/Editor/Icons/banner1.png "UCloth")
+
 ### <i>WARNING: This project is not production ready and no further work will be done. No PRs will be accepted. It is primarily intented to be a learning resource.</i>
 
 <br>
@@ -19,6 +21,12 @@ See [Setup.md](/Documentation/Setup.md) for information on how to set up the sim
 
 
 <br>
+
+## Installation
+This repository is a package compatible with UPM. Open the Package Manager window in Unity and click the "plus" icon. Select "Add packager from git URL" and paste the link to this repository (https://github.com/Matusson/UCloth.git). Alternatively, you can also clone the repo and add package from disk.
+
+<br>
+
 
 
 ## License
