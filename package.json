@@ -1,8 +1,8 @@
 {
   "name": "com.matusson.ucloth",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "displayName": "UCloth",
-  "description": "Custom Burst-based cloth sim component.",
+  "description": "Custom Burst-based cloth simulation prototype component.",
   "unity": "2021.3",
   "dependencies": {
     "com.unity.jobs": "0.70.0-preview.7"

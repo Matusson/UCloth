@@ -25,6 +25,8 @@ See [Setup.md](/Documentation/Setup.md) for information on how to set up the sim
 ## Installation
 This repository is a package compatible with UPM. Open the Package Manager window in Unity and click the "plus" icon. Select "Add packager from git URL" and paste the link to this repository (https://github.com/Matusson/UCloth.git). Alternatively, you can also clone the repo and add package from disk.
 
+Designed for Unity 2021.3.
+
 <br>
 
 
